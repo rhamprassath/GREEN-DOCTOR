@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity, ScrollView, Dimensions, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
@@ -66,145 +67,143 @@ const HomeScreen = ({ route, navigation }) => {
     };
 
     return (
-        <React.Fragment>
+        <SafeAreaView style={styles.container} edges={['right', 'left', 'top']}>
             <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-            <View style={styles.container}>
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.headerLeft}>
-                            <View style={styles.logoCircle}>
-                                <Image
-                                    source={require('../assets/logo.png')}
-                                    style={styles.headerLogo}
-                                    resizeMode="cover"
-                                />
-                            </View>
-                            <View style={styles.headerTextContainer}>
-                                <Text style={styles.headerTitle}>GREEN DOCTOR</Text>
-                                <Text style={styles.headerSubtitle}>{t.subtitle}</Text>
-                            </View>
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                        <View style={styles.logoCircle}>
+                            <Image
+                                source={require('../assets/logo.png')}
+                                style={styles.headerLogo}
+                                resizeMode="contain"
+                            />
                         </View>
-                        <View style={styles.headerActions}>
-                            <TouchableOpacity
-                                style={styles.headerActionButton}
-                                onPress={() => navigation.navigate('Language')}
-                                title={t.changeLanguage}
-                            >
-                                <Text style={styles.headerActionIcon}>🌐</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.headerActionButton}
-                                onPress={() => navigation.navigate('About', { language })}
-                                title={t.aboutApp}
-                            >
-                                <Text style={styles.headerActionIcon}>ℹ️</Text>
-                            </TouchableOpacity>
+                        <View style={styles.headerTextContainer}>
+                            <Text style={styles.headerTitle}>GREEN DOCTOR</Text>
+                            <Text style={styles.headerSubtitle}>{t.subtitle}</Text>
                         </View>
                     </View>
-
-                    {/* Action Buttons */}
-                    <View style={styles.actionContainer}>
-                        <TouchableOpacity style={styles.actionCard} onPress={takePhoto}>
-                            <View style={styles.actionIconCircle}>
-                                <Text style={styles.actionIcon}>📷</Text>
-                            </View>
-                            <Text style={styles.actionTitle}>{t.scanPlant}</Text>
-                            <Text style={styles.actionSubtitle}>{t.detectDiseases}</Text>
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity
+                            style={styles.headerActionButton}
+                            onPress={() => navigation.navigate('Language')}
+                            title={t.changeLanguage}
+                        >
+                            <Text style={styles.headerActionIcon}>🌐</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.actionCard} onPress={pickImage}>
-                            <View style={[styles.actionIconCircle, { backgroundColor: '#388e3c' }]}>
-                                <Text style={styles.actionIcon}>🖼️</Text>
-                            </View>
-                            <Text style={styles.actionTitle}>{t.pickFromGallery}</Text>
-                            <Text style={styles.actionSubtitle}>{t.detectDiseases}</Text>
+                        <TouchableOpacity
+                            style={styles.headerActionButton}
+                            onPress={() => navigation.navigate('About', { language })}
+                            title={t.aboutApp}
+                        >
+                            <Text style={styles.headerActionIcon}>ℹ️</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
 
-                    {/* History Button (Moved below or as a full width card) */}
-                    <TouchableOpacity
-                        style={styles.historyFullCard}
-                        onPress={() => navigation.navigate('History', { language })}
-                    >
-                        <View style={styles.historyIconSmall}>
-                            <Text style={{ fontSize: 18 }}>↺</Text>
+                {/* Action Buttons */}
+                <View style={styles.actionContainer}>
+                    <TouchableOpacity style={styles.actionCard} onPress={takePhoto}>
+                        <View style={styles.actionIconCircle}>
+                            <Text style={styles.actionIcon}>📷</Text>
                         </View>
-                        <Text style={styles.historyText}>{t.history}</Text>
-                        <Text style={styles.historySubText}>{t.pastDiagnoses}</Text>
+                        <Text style={styles.actionTitle}>{t.scanPlant}</Text>
+                        <Text style={styles.actionSubtitle}>{t.detectDiseases}</Text>
                     </TouchableOpacity>
 
-                    {/* Government Schemes Button */}
-                    <TouchableOpacity
-                        style={styles.historyFullCard}
-                        onPress={() => navigation.navigate('Schemes', { language })}
-                    >
-                        <View style={[styles.historyIconSmall, { backgroundColor: '#fff3e0' }]}>
-                            <Text style={{ fontSize: 18 }}>📋</Text>
+                    <TouchableOpacity style={styles.actionCard} onPress={pickImage}>
+                        <View style={[styles.actionIconCircle, { backgroundColor: '#388e3c' }]}>
+                            <Text style={styles.actionIcon}>🖼️</Text>
                         </View>
-                        <Text style={styles.historyText}>{t.govtSchemes}</Text>
-                        <Text style={styles.historySubText}>{t.viewSchemes}</Text>
+                        <Text style={styles.actionTitle}>{t.pickFromGallery}</Text>
+                        <Text style={styles.actionSubtitle}>{t.detectDiseases}</Text>
                     </TouchableOpacity>
+                </View>
 
-                    {/* Stats */}
-                    <Text style={styles.sectionTitle}>{t.yourStats}</Text>
-                    <View style={styles.statsContainer}>
-                        <StatCard icon="📈" number={stats.total} label={t.totalScans} color="#00897b" />
-                        <StatCard icon="🌿" number={stats.healthy} label={t.healthyPlants} color="#00c853" />
-                        <StatCard icon="!" number={stats.issues} label={t.issuesDetected} color="#ff6f00" />
+                {/* History Button (Moved below or as a full width card) */}
+                <TouchableOpacity
+                    style={styles.historyFullCard}
+                    onPress={() => navigation.navigate('History', { language })}
+                >
+                    <View style={styles.historyIconSmall}>
+                        <Text style={{ fontSize: 18 }}>↺</Text>
                     </View>
+                    <Text style={styles.historyText}>{t.history}</Text>
+                    <Text style={styles.historySubText}>{t.pastDiagnoses}</Text>
+                </TouchableOpacity>
 
-                    {/* Today's Tip */}
-                    <Text style={styles.sectionTitle}>{t.todaysTip}</Text>
-                    <View style={styles.tipCard}>
-                        <Text style={styles.tipIcon}>📖</Text>
-                        <Text style={styles.tipText}>{t.tipContent}</Text>
+                {/* Government Schemes Button */}
+                <TouchableOpacity
+                    style={styles.historyFullCard}
+                    onPress={() => navigation.navigate('Schemes', { language })}
+                >
+                    <View style={[styles.historyIconSmall, { backgroundColor: '#fff3e0' }]}>
+                        <Text style={{ fontSize: 18 }}>📋</Text>
                     </View>
+                    <Text style={styles.historyText}>{t.govtSchemes}</Text>
+                    <Text style={styles.historySubText}>{t.viewSchemes}</Text>
+                </TouchableOpacity>
 
-                    {/* Recent Scans */}
-                    <Text style={styles.sectionTitle}>{t.recentScans}</Text>
+                {/* Stats */}
+                <Text style={styles.sectionTitle}>{t.yourStats}</Text>
+                <View style={styles.statsContainer}>
+                    <StatCard icon="📈" number={stats.total} label={t.totalScans} color="#00897b" />
+                    <StatCard icon="🌿" number={stats.healthy} label={t.healthyPlants} color="#00c853" />
+                    <StatCard icon="!" number={stats.issues} label={t.issuesDetected} color="#ff6f00" />
+                </View>
 
-                    {recentScans.length === 0 ? (
-                        <Text style={{ color: COLORS.gray, fontStyle: 'italic', marginTop: 10 }}>{t.noHistory}</Text>
-                    ) : (
-                        recentScans.map((item, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={styles.recentItem}
-                                onPress={() => navigation.navigate('Result', {
-                                    imageUri: item.imageUri,
-                                    analysisResult: item.analysisResult,
-                                    language: language
-                                })}
-                            >
-                                <Image source={{ uri: item.imageUri }} style={styles.recentImagePlaceholder} />
-                                <View style={styles.recentInfo}>
-                                    <Text style={styles.recentPlant}>{item.analysisResult.crop}</Text>
-                                    <Text style={[
-                                        styles.recentIssue,
-                                        { color: item.analysisResult.isHealthy ? COLORS.secondary : COLORS.warning }
-                                    ]}>
-                                        {item.analysisResult.name[language]}
-                                    </Text>
-                                    <Text style={styles.recentTime}>
-                                        {new Date(item.timestamp).toLocaleDateString()}
-                                    </Text>
-                                </View>
+                {/* Today's Tip */}
+                <Text style={styles.sectionTitle}>{t.todaysTip}</Text>
+                <View style={styles.tipCard}>
+                    <Text style={styles.tipIcon}>📖</Text>
+                    <Text style={styles.tipText}>{t.tipContent}</Text>
+                </View>
+
+                {/* Recent Scans */}
+                <Text style={styles.sectionTitle}>{t.recentScans}</Text>
+
+                {recentScans.length === 0 ? (
+                    <Text style={{ color: COLORS.gray, fontStyle: 'italic', marginTop: 10 }}>{t.noHistory}</Text>
+                ) : (
+                    recentScans.map((item, index) => (
+                        <TouchableOpacity
+                            key={index}
+                            style={styles.recentItem}
+                            onPress={() => navigation.navigate('Result', {
+                                imageUri: item.imageUri,
+                                analysisResult: item.analysisResult,
+                                language: language
+                            })}
+                        >
+                            <Image source={{ uri: item.imageUri }} style={styles.recentImagePlaceholder} />
+                            <View style={styles.recentInfo}>
+                                <Text style={styles.recentPlant}>{item.analysisResult.crop}</Text>
                                 <Text style={[
-                                    styles.alertIcon,
+                                    styles.recentIssue,
                                     { color: item.analysisResult.isHealthy ? COLORS.secondary : COLORS.warning }
                                 ]}>
-                                    {item.analysisResult.isHealthy ? "🌿" : "!"}
+                                    {item.analysisResult.name[language]}
                                 </Text>
-                            </TouchableOpacity>
-                        ))
-                    )}
+                                <Text style={styles.recentTime}>
+                                    {new Date(item.timestamp).toLocaleDateString()}
+                                </Text>
+                            </View>
+                            <Text style={[
+                                styles.alertIcon,
+                                { color: item.analysisResult.isHealthy ? COLORS.secondary : COLORS.warning }
+                            ]}>
+                                {item.analysisResult.isHealthy ? "🌿" : "!"}
+                            </Text>
+                        </TouchableOpacity>
+                    ))
+                )}
 
-                    <View style={{ height: 100 }} />
-                </ScrollView>
-            </View>
-        </React.Fragment>
+                <View style={{ height: 100 }} />
+            </ScrollView>
+        </SafeAreaView>
     );
 };
 
@@ -215,6 +214,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: SIZES.padding,
+        paddingBottom: 20,
     },
     header: {
         flexDirection: 'row',
@@ -222,13 +222,11 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: 20,
         backgroundColor: COLORS.primary,
-        marginHorizontal: -SIZES.padding,
-        marginTop: -SIZES.padding,
-        paddingTop: SIZES.padding + 10,
+        // Removed negative margins for SafeAreaView
+        paddingTop: 10,
         paddingBottom: 20,
         paddingHorizontal: SIZES.padding,
-        borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20,
+        borderRadius: 20, // Rounded corners all around for card-like feel inside container
         elevation: 5,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
