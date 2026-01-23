@@ -13,7 +13,7 @@ const KINDWISE_API_URL = "https://api.plant.id/v2/health";
 const KINDWISE_API_TOKEN = ""; // <-- PASTE YOUR KINDWISE API KEY HERE (https://web.plant.id/)
 
 // Option C: Local Python Server (Real Detection on your machine)
-const LOCAL_API_URL = "http://10.115.242.148:8000/predict";
+const LOCAL_API_URL = "https://green-doctor-q79x.onrender.com/predict";
 // ----------------------------------------------------------------------
 
 export const analyzeImage = async (imageUri) => {
