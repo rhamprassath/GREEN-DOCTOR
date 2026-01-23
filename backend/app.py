@@ -1,20 +1,16 @@
 import os
-# SECURITY BYPASS: Required for Agricultural Expert Models (PyTorch weights)
-os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
+import io
+
 # Optimize memory for low-resource environments (Render Free)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2" # Hide TF info logs
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
+os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1" # Try to save some init overhead
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-import numpy as np
 from PIL import Image
-import io
-import os
-import cv2
 
 # Global variable for Lite Mode (Auto-detected)
-IS_RENDER = os.environ.get("RENDER", "false").lower() == "true"
+IS_RENDER = os.environ.get("RENDER", "true").lower() == "true"
 
 app = FastAPI(title="Green Doctor AI Vision")
 
@@ -54,9 +50,10 @@ def get_experts():
     return GENERAL_EXPERT, RICE_EXPERT, SUGARCANE_EXPERT
 
 def focalize_leaf(image_bytes):
+    import numpy as np
+    import cv2
     """
     Expert Focalizer: Uses computer vision to find the leaf and crop it.
-    This mimics professional scanner precision.
     """
     try:
         # 1. Convert to OpenCV format

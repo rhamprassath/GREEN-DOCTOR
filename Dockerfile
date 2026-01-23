@@ -27,8 +27,10 @@ COPY backend ./backend
 # Expose port 8000
 EXPOSE 8000
 
-# Set environment variable to ensure output is flushed immediately
+# Set environment variables for Render
+ENV PORT=8000
+ENV RENDER=true
 ENV PYTHONUNBUFFERED=1
 
-# Command to run the application
-CMD ["python", "backend/app.py"]
+# Command to run the application using uvicorn directly for faster binding
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
