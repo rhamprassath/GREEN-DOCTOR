@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 
 # Global variable for Lite Mode (Auto-detected)
-IS_RENDER = os.environ.get("RENDER", "true").lower() == "true"
+IS_RENDER = os.environ.get("RENDER", "false").lower() == "true"
 
 app = FastAPI(title="Green Doctor AI Vision")
 
@@ -153,7 +153,7 @@ async def predict(file: UploadFile = File(...)):
         
         # 2. ENSEMBLE LOGIC: Pick the winner based on confidence
         # We also filter out Rice results that are clearly not rice if General is much higher
-        best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none"}
+        best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none", "label": "None"}
         
         # Check General
         if results_gen:
@@ -188,7 +188,7 @@ async def predict(file: UploadFile = File(...)):
             print(f"UNCERTAIN Ensemble: {best_prediction['label']} ({best_prediction['score']*100:.1f}%) < Threshold")
         else:
             final_class = best_prediction['class']
-            print(f"WINNER [{best_prediction['expert']}]: {best_prediction['label']} -> {final_class} ({best_prediction['score']*100:.1f}%)")
+            print(f"WINNER [{best_prediction['expert']}]: {best_prediction.get('label', 'None')} -> {final_class} ({best_prediction['score']*100:.1f}%)")
         
         return {
             "class": final_class,

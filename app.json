@@ -21,7 +21,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.rhamprassath.GreenDoctor"
+      "package": "com.rhamprassath.GreenDoctor",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,8 +35,12 @@
         "projectId": "71c27fdc-cb41-40a1-a828-065b19a5486d"
       }
     },
-    "plugins": [
-      "expo-barcode-scanner"
-    ]
+    "plugins": [],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/71c27fdc-cb41-40a1-a828-065b19a5486d"
+    }
   }
 }
