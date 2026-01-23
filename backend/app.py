@@ -107,37 +107,35 @@ def focalize_leaf(image_bytes):
         return Image.open(io.BytesIO(image_bytes)).convert('RGB')
 
 # --- MAPPINGS ---
-# Map Rice Expert Labels
-RICE_MAP = {
+# Comprehensive Expert Mapping (Matches wambugu71/crop_leaf_diseases_vit)
+EXPERT_MAP = {
+    # Rice
     'Rice___Brown_Spot': 'Paddy - Brown Spot',
-    'Rice___Healthy': 'Paddy - Healthy', 
-    'Rice___Leaf_Blast': 'Paddy - Blast'
+    'Rice___Healthy': 'Paddy - Healthy',
+    'Rice___Leaf_Blast': 'Paddy - Blast',
+    # Corn
+    'Corn___Common_Rust': 'Corn - Common Rust',
+    'Corn___Gray_Leaf_Spot': 'Corn - Gray Leaf Spot',
+    'Corn___Healthy': 'Corn - Healthy',
+    'Corn___Northern_Leaf_Blight': 'Corn - Gray Leaf Spot', # Map to nearest if not in DB
+    # Potato
+    'Potato___Early_Blight': 'Potato - Early Blight',
+    'Potato___Healthy': 'Potato - Healthy',
+    'Potato___Late_Blight': 'Potato - Late Blight',
+    # Wheat
+    'Wheat___Brown_Rust': 'Wheat - Brown Rust',
+    'Wheat___Healthy': 'Wheat - Healthy',
+    'Wheat___Yellow_Rust': 'Wheat - Yellow Rust',
 }
 
-# Map Sugarcane Expert Labels (LABEL_0 to LABEL_5)
-SUGARCANE_MAP = {
-    'LABEL_0': 'Sugarcane - Red Rot', # Red Rot / Blight
-    'LABEL_1': 'Sugarcane - Healthy',
-    'LABEL_2': 'Sugarcane - Smut', # Mosaic
-    'LABEL_3': 'Sugarcane - Red Rot', # Red Rot
-    'LABEL_4': 'Sugarcane - Smut', # Rust
-    'LABEL_5': 'Sugarcane - Healthy' # Yellow
-}
-
-# General Expert Mappings (Swin Transformer Labels)
+# Legacy Mappings (Fallback for General Expert)
 GENERAL_MAP = {
-    'corn': "Paddy - Blast",
+    'corn': "Corn - Healthy",
     'potato': "Potato - Healthy",
     'tomato': "Tomato - Healthy",
     'bell pepper': "Chilli - Healthy",
     'cucumber': "Chilli - Anthracnose (Fruit Rot)",
     'zucchini': "Brinjal - Phomopsis Blight",
-    'broccoli': "Brinjal - Healthy",
-    'cauliflower': "Brinjal - Healthy",
-    'cabbage': "Brinjal - Healthy",
-    'strawberry': "Chilli - Anthracnose (Fruit Rot)",
-    'lemon': "Tomato - Spotted Wilt",
-    'orange': "Coconut - Tanjore Wilt",
 }
 
 @app.api_route("/", methods=["GET", "HEAD"])
@@ -158,14 +156,12 @@ async def predict(file: UploadFile = File(...)):
         
         # 1. RUN ALL EXPERTS (with safety checks)
         results_gen = GENERAL_EXPERT(image) if GENERAL_EXPERT else []
-        results_rice = RICE_EXPERT(image) if RICE_EXPERT else []
-        results_sugar = SUGARCANE_EXPERT(image) if SUGARCANE_EXPERT else []
+        results_expert = RICE_EXPERT(image) if RICE_EXPERT else []
         
         # 2. ENSEMBLE LOGIC: Pick the winner based on confidence
-        # We also filter out Rice results that are clearly not rice if General is much higher
         best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none", "label": "None"}
         
-        # Check General
+        # Check General (Swin Transformer)
         if results_gen:
             ai_label = results_gen[0]['label']
             ai_score = results_gen[0]['score']
@@ -173,23 +169,15 @@ async def predict(file: UploadFile = File(...)):
             if ai_score > best_prediction['score']:
                 best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
         
-        # Check Rice Expert
-        if results_rice:
-            ai_label = results_rice[0]['label']
-            ai_score = results_rice[0]['score']
-            mapped = RICE_MAP.get(ai_label)
-            # Only override if high confidence (Experts take priority for their niche)
-            if mapped and ai_score > 0.50: 
-                 best_prediction = {"class": mapped, "score": ai_score, "expert": "Rice", "label": ai_label}
+        # Check Multi-Crop Expert (ViT)
+        if results_expert:
+            ai_label = results_expert[0]['label']
+            ai_score = results_expert[0]['score']
+            mapped = EXPERT_MAP.get(ai_label)
+            # Specific experts take priority if they have a clear match (>45% confidence)
+            if mapped and ai_score > 0.45: 
+                 best_prediction = {"class": mapped, "score": ai_score, "expert": "Specific Plant Expert", "label": ai_label}
         
-        # Check Sugarcane Expert
-        if results_sugar:
-            ai_label = results_sugar[0]['label']
-            ai_score = results_sugar[0]['score']
-            mapped = SUGARCANE_MAP.get(ai_label)
-            if mapped and ai_score > 0.45:
-                 best_prediction = {"class": mapped, "score": ai_score, "expert": "Sugarcane", "label": ai_label}
-
         # PLANTIX LOGIC: Final check
         CONFIDENCE_THRESHOLD = 0.40
         

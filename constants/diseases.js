@@ -287,6 +287,29 @@ export const DISEASES = [
 
     // --- POTATO ---
     {
+        id: 'potato_healthy',
+        crop: 'Potato',
+        name: { en: "Potato - Healthy", ta: "உருளைக்கிழங்கு - ஆரோக்கியமானது" },
+        isHealthy: true,
+        severity: 'Low',
+        symptoms: { en: "Leaves are lush green and free of any spots or lesions.", ta: "இலைகள் பசுமையாகவும் எந்தவிதமான புள்ளிகளும் இல்லாமல் இருக்கும்." },
+        remedy_organic: { en: "Maintain regular hilling and irrigation.", ta: "வழக்கமான மண் அணைத்தல் மற்றும் நீர் பாய்ச்சுதலைப் பராமரிக்கவும்." },
+        remedy_chemical: { en: "None required.", ta: "தேவையில்லை." },
+        prevention: { en: "Use certified disease-free seed tubers.", ta: "சான்றளிக்கப்பட்ட நோய் இல்லாத கிழங்குகளைப் பயன்படுத்தவும்." }
+    },
+    {
+        id: 'potato_early_blight',
+        crop: 'Potato',
+        name: { en: "Potato - Early Blight", ta: "உருளைக்கிழங்கு - முன்கூட்டிய கருகல்" },
+        isHealthy: false,
+        severity: 'Medium',
+        symptoms: { en: "Small, black spots with concentric rings on older leaves.", ta: "பழைய இலைகளில் வளையங்களுடன் கூடிய சிறிய கருப்பு புள்ளிகள்." },
+        cause: { en: "Fungus: Alternaria solani", ta: "பூஞ்சை: ஆல்டர்நேரியா சோலானி" },
+        remedy_organic: { en: "Remove infected leaves. Spray Neem oil.", ta: "பாதிக்கப்பட்ட இலைகளை அகற்றவும். வேப்ப எண்ணெய் தெளிக்கவும்." },
+        remedy_chemical: { en: "Spray Mancozeb (2g/l) or Chlorothalonil.", ta: "மன்கோசெப் (2கி/லி) அல்லது குளோரோதலோனில் தெளிக்கவும்." },
+        prevention: { en: "Crop rotation and proper spacing.", ta: "பயிர் சுழற்சி மற்றும் முறையான இடைவெளி." }
+    },
+    {
         id: 'potato_late_blight',
         crop: 'Potato',
         name: { en: "Potato - Late Blight", ta: "உருளைக்கிழங்கு - தாமதமான கருகல்" },
@@ -297,5 +320,79 @@ export const DISEASES = [
         remedy_organic: { en: "Spray Copper oxychloride. Destroy infected piles.", ta: "காப்பர் ஆக்ஸிகுளோரைடு தெளிக்கவும். பாதிக்கப்பட்ட குவியல்களை அழிக்கவும்." },
         remedy_chemical: { en: "Spray Metalaxyl + Mancozeb (2g/l).", ta: "மெட்டாலாக்ஸில் + மன்கோசெப் தெளிக்கவும்." },
         prevention: { en: "Use certified disease-free seeds.", ta: "சான்றளிக்கப்பட்ட நோய் இல்லாத விதைகளைப் பயன்படுத்தவும்." }
+    },
+
+    // --- CORN ---
+    {
+        id: 'corn_common_rust',
+        crop: 'Corn',
+        name: { en: "Corn - Common Rust", ta: "சோளம் - துரு நோய்" },
+        isHealthy: false,
+        severity: 'Medium',
+        symptoms: { en: "Cinnamon-brown pustules on both leaf surfaces.", ta: "இலையின் இருபுறமும் பழுப்பு நிற கொப்புளங்கள்." },
+        cause: { en: "Fungus: Puccinia sorghi", ta: "பூஞ்சை: புக்சினியா சோர்கி" },
+        remedy_organic: { en: "Use resistant varieties. Spray compost tea.", ta: "எதிர்ப்புத் திறன் கொண்ட ரகங்களைப் பயன்படுத்தவும்." },
+        remedy_chemical: { en: "Spray Mancozeb or Pyraclostrobin.", ta: "மன்கோசெப் அல்லது பைராக்ளோஸ்ட்ரோபின் தெளிக்கவும்." },
+        prevention: { en: "Avoid late planting. Remove crop debris.", ta: "தாமதமாக நடவு செய்வதைத் தவிர்க்கவும்." }
+    },
+    {
+        id: 'corn_gray_leaf_spot',
+        crop: 'Corn',
+        name: { en: "Corn - Gray Leaf Spot", ta: "சோளம் - சாம்பல் இலை புள்ளி" },
+        isHealthy: false,
+        severity: 'High',
+        symptoms: { en: "Rectangular, gray to tan spots parallel to leaf veins.", ta: "இலை நரம்புகளுக்கு இணையாக செவ்வக வடிவ சாம்பல் நிற புள்ளிகள்." },
+        cause: { en: "Fungus: Cercospora zeae-maydis", ta: "பூஞ்சை: செர்கோஸ்போரா சீ-மேடிஸ்" },
+        remedy_organic: { en: "Tillage to bury debris. Crop rotation.", ta: "களைகளை ஆழமாக உழுது அழிக்கவும். பயிர் சுழற்சி." },
+        remedy_chemical: { en: "Spray Propiconazole or Azoxystrobin.", ta: "புரோப்பிகோனசோல் அல்லது அசோக்ஸிஸ்ட்ரோபின் தெளிக்கவும்." },
+        prevention: { en: "Use resistant hybrids. Clean cultivation.", ta: "எதிர்ப்புத் திறன் கொண்ட கலப்பினங்களைப் பயன்படுத்தவும்." }
+    },
+    {
+        id: 'corn_healthy',
+        crop: 'Corn',
+        name: { en: "Corn - Healthy", ta: "சோளம் - ஆரோக்கியமானது" },
+        isHealthy: true,
+        severity: 'Low',
+        symptoms: { en: "Broad, vibrant green leaves with strong stalks.", ta: "துடிப்பான பச்சை நிற இலைகள் மற்றும் வலிமையான தண்டுகள்." },
+        remedy_organic: { en: "Balanced fertilization and proper irrigation.", ta: "சமச்சீரான உரமிடுதல் மற்றும் முறையான நீர் மேலாண்மை." },
+        remedy_chemical: { en: "None required.", ta: "தேவையில்லை." },
+        prevention: { en: "Regular scouting.", ta: "தொடர் கண்காணிப்பு." }
+    },
+
+    // --- WHEAT ---
+    {
+        id: 'wheat_brown_rust',
+        crop: 'Wheat',
+        name: { en: "Wheat - Brown Rust", ta: "கோதுமை - பழுப்பு துரு நோய்" },
+        isHealthy: false,
+        severity: 'Medium',
+        symptoms: { en: "Small, orange-brown circular pustules on leaf blades.", ta: "இலைகளில் சிறிய ஆரஞ்சு-பழுப்பு நிற வட்ட வடிவ கொப்புளங்கள்." },
+        cause: { en: "Fungus: Puccinia triticina", ta: "பூஞ்சை: புக்சினியா டிரிடிசினா" },
+        remedy_organic: { en: "Resistant varieties. Early sowing.", ta: "எதிர்ப்பு ரகங்கள். முன்கூட்டியே விதைத்தல்." },
+        remedy_chemical: { en: "Spray Tebuconazole or Triadimefon.", ta: "டெபுகோனசோல் அல்லது டிரையாடிமெஃபோன் தெளிக்கவும்." },
+        prevention: { en: "Control volunteer plants. Balanced N usage.", ta: "களைகளைக் கட்டுப்படுத்தவும்." }
+    },
+    {
+        id: 'wheat_yellow_rust',
+        crop: 'Wheat',
+        name: { en: "Wheat - Yellow Rust", ta: "கோதுமை - மஞ்சள் துரு நோய்" },
+        isHealthy: false,
+        severity: 'High',
+        symptoms: { en: "Yellow stripes of pustules parallel to leaf veins.", ta: "இலை நரம்புகளுக்கு இணையாக மஞ்சள் நிற கோடுகளுடன் கூடிய கொப்புளங்கள்." },
+        cause: { en: "Fungus: Puccinia striiformis", ta: "பூஞ்சை: புக்சினியா ஸ்ட்ரிஃபார்மிஸ்" },
+        remedy_organic: { en: "Plant resistant varieties during cool seasons.", ta: "குளிர் காலங்களில் எதிர்ப்பு ரகங்களை நடவு செய்யவும்." },
+        remedy_chemical: { en: "Foliar spray of Propiconazole (1ml/l).", ta: "புரோப்பிகோனசோல் (1மி.லி/லி) இலைத்தெளிப்பு." },
+        prevention: { en: "Avoid over-irrigation in winter. Monitor regularly.", ta: "குளிர்காலத்தில் அதிகப்படியான நீர் பாய்ச்சுவதைத் தவிர்க்கவும்." }
+    },
+    {
+        id: 'wheat_healthy',
+        crop: 'Wheat',
+        name: { en: "Wheat - Healthy", ta: "கோதுமை - ஆரோக்கியமானது" },
+        isHealthy: true,
+        severity: 'Low',
+        symptoms: { en: "Clean green foliage and sturdy tillers.", ta: "சுத்தமான பச்சை நிற இலைகள் மற்றும் உறுதியான கிளைகள்." },
+        remedy_organic: { en: "Maintain optimal soil moisture.", ta: "மண்ணின் ஈரப்பதத்தைப் பராமரிக்கவும்." },
+        remedy_chemical: { en: "None required.", ta: "தேவையில்லை." },
+        prevention: { en: "Use certified seeds.", ta: "சான்றளிக்கப்பட்ட விதைகளைப் பயன்படுத்தவும்." }
     }
 ];
