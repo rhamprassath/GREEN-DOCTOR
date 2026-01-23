@@ -131,6 +131,7 @@ GENERAL_MAP = {
 }
 
 @app.get("/")
+@app.head("/")
 def read_root():
     return {"message": "Green Doctor AI (Safetensors) is Ready"}
 
