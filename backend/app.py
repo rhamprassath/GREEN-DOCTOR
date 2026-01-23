@@ -1,6 +1,8 @@
 import os
 # SECURITY BYPASS: Required for Agricultural Expert Models (PyTorch weights)
 os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "0"
+# Optimize memory for low-resource environments (Render Free)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2" # Hide TF info logs
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +12,9 @@ from PIL import Image
 import io
 import os
 import cv2
-from transformers import pipeline
+
+# Global variable for Lite Mode (Auto-detected)
+IS_RENDER = os.environ.get("RENDER", "false").lower() == "true"
 
 app = FastAPI(title="Green Doctor AI Vision")
 
@@ -31,15 +35,21 @@ RICE_EXPERT = None
 SUGARCANE_EXPERT = None
 
 def get_experts():
+    from transformers import pipeline # Lazy import to save memory during startup
     global GENERAL_EXPERT, RICE_EXPERT, SUGARCANE_EXPERT
     if GENERAL_EXPERT is None:
         print("Loading AI Experts (Expert Ensemble Initializing)...")
-        # General: SOTA Vision Transformer (microsoft/swin-tiny)
-        GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
-        # Rice Expert: High-fidelity Vision Transformer (Safetensors)
-        RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
-        # Sugarcane Expert: DISABLED due to legacy security restriction (torch.load CVE)
-        # BUG: The current efficientnet model lacks safetensors.
+        
+        # In Render Free Tier (512MB), we only load the RICE expert to prevent OOM
+        if IS_RENDER:
+            print("RENDER DETECTED: Running in LITE mode (Single Expert)")
+            RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
+            GENERAL_EXPERT = None
+        else:
+            # Full Ensemble for local/higher-tier deployment
+            GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
+            RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
+        
         SUGARCANE_EXPERT = None
     return GENERAL_EXPERT, RICE_EXPERT, SUGARCANE_EXPERT
 
@@ -194,4 +204,7 @@ async def predict(file: UploadFile = File(...)):
         return {"error": str(e), "status": "failed"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Get port from environment (Render default is 10000 or specified in UI)
+    port = int(os.environ.get("PORT", 8000))
+    print(f"Server starting on port {port}...")
+    uvicorn.run(app, host="0.0.0.0", port=port)
