@@ -130,8 +130,7 @@ GENERAL_MAP = {
     'orange': "Coconut - Tanjore Wilt",
 }
 
-@app.get("/")
-@app.head("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"message": "Green Doctor AI (Safetensors) is Ready"}
 
@@ -202,7 +201,7 @@ async def predict(file: UploadFile = File(...)):
         return {"error": str(e), "status": "failed"}
 
 if __name__ == "__main__":
-    # Get port from environment (Render default is 10000 or specified in UI)
-    port = int(os.environ.get("PORT", 8000))
+    # Get port from environment (Render default is 10000)
+    port = int(os.environ.get("PORT", 10000))
     print(f"Server starting on port {port}...")
     uvicorn.run(app, host="0.0.0.0", port=port)

@@ -24,13 +24,13 @@ RUN python backend/download_models.py
 # Copy the rest of the application code
 COPY backend ./backend
 
-# Expose port 8000
-EXPOSE 8000
+# Expose port 10000
+EXPOSE 10000
 
 # Set environment variables for Render
-ENV PORT=8000
+ENV PORT=10000
 ENV RENDER=true
 ENV PYTHONUNBUFFERED=1
 
-# Command to run the application using uvicorn directly for faster binding
-CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Command to run the application using uvicorn directly
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "10000"]
