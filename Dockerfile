@@ -16,6 +16,11 @@ COPY backend/requirements.txt ./backend/requirements.txt
 # Install python dependencies
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
+# Pre-download AI models to bake them into the image
+# This prevents timeouts and slow startup on Render
+COPY backend/download_models.py ./backend/download_models.py
+RUN python backend/download_models.py
+
 # Copy the rest of the application code
 COPY backend ./backend
 
