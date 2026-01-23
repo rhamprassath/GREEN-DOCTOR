@@ -135,6 +135,29 @@ export const DISEASES = [
         remedy_chemical: { en: "Spray Streptocycline (0.05g) + Copper oxychloride (1.5g) per liter.", ta: "ஸ்டிரெப்டோசைக்ளின் + காப்பர் ஆக்ஸிகுளோரைடு தெளிக்கவும்." },
         prevention: { en: "Drain field during infection. Avoid clipping tips.", ta: "பாதிக்கப்பட்ட போது நீரை வடித்து விடவும்." }
     },
+    {
+        id: 'paddy_brown_spot',
+        crop: 'Paddy',
+        name: { en: "Paddy - Brown Spot", ta: "நெல் - பழுப்பு புள்ளி நோய்" },
+        isHealthy: false,
+        severity: 'Medium',
+        symptoms: { en: "Small, oval, brown spots on leaves with gray/white centers.", ta: "இலைகளில் சாம்பல்/வெள்ளை மையத்துடன் கூடிய சிறிய, ஓவல், பழுப்பு நிற புள்ளிகள்." },
+        cause: { en: "Fungus: Helminthosporium oryzae (TNAU Verified)", ta: "பூஞ்சை: ஹெல்மின்டோஸ்போரியம் ஒரைசே" },
+        remedy_organic: { en: "Apply potash. Foliar spray of Pseudomonas fluorescens.", ta: "பொட்டாஷ் உரத்தை இடவும். சூடோமோனாஸ் ஃப்ளோரசன்ஸ் தெளிக்கவும்." },
+        remedy_chemical: { en: "Spray Mancozeb (2g/l) or Edifenphos.", ta: "மன்கோசெப் (2கி/லி) அல்லது எடிஃபென்போஸ் தெளிக்கவும்." },
+        prevention: { en: "Use healthy seeds. Balanced nutrition.", ta: "ஆரோக்கியமான விதைகளைப் பயன்படுத்தவும். சமச்சீரான ஊட்டச்சத்து அளிக்கவாம்." }
+    },
+    {
+        id: 'paddy_healthy',
+        crop: 'Paddy',
+        name: { en: "Paddy - Healthy", ta: "நெல் - ஆரோக்கியமானது" },
+        isHealthy: true,
+        severity: 'Low',
+        symptoms: { en: "Leaves are vibrant green and upright.", ta: "இலைகள் துடிப்பான பச்சை நிறமாகவும் நிமிர்ந்தும் இருக்கும்." },
+        remedy_organic: { en: "Maintain water level and regular fertilization.", ta: "நீர் மட்டம் மற்றும் வழக்கமான உரமிடுதலைப் பராமரிக்கவும்." },
+        remedy_chemical: { en: "None required.", ta: "தேவையில்லை." },
+        prevention: { en: "Regular monitoring.", ta: "தொடர் கண்காணிப்பு." }
+    },
 
     // --- SUGARCANE ---
     {

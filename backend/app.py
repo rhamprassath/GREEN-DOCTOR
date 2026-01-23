@@ -110,7 +110,7 @@ def focalize_leaf(image_bytes):
 # Map Rice Expert Labels
 RICE_MAP = {
     'Rice___Brown_Spot': 'Paddy - Brown Spot',
-    'Rice___Healthy': 'Paddy - Bacterial Leaf Blight', # Map healthy to a safe baseline or special HealthyID if added
+    'Rice___Healthy': 'Paddy - Healthy', 
     'Rice___Leaf_Blast': 'Paddy - Blast'
 }
 
