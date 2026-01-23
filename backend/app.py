@@ -3,11 +3,16 @@ import io
 
 # Optimize memory for low-resource environments (Render Free)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
-os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1" # Try to save some init overhead
+os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1" 
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
+import gc
+import torch
+torch.set_num_threads(1)
 
 # Global variable for Lite Mode (Auto-detected)
 IS_RENDER = os.environ.get("RENDER", "false").lower() == "true"
@@ -38,9 +43,11 @@ def get_experts():
         
         # In Render Free Tier (512MB), we only load the RICE expert to prevent OOM
         if IS_RENDER:
-            print("RENDER DETECTED: Running in LITE mode (Single Expert)")
-            RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
+            print("RENDER DETECTED: Running in LITE mode (High-Accuracy Tiny Expert)")
+            # Swin Tiny: High accuracy, ~110MB footprint
+            RICE_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
             GENERAL_EXPERT = None
+            gc.collect() # Force cleanup after loading
         else:
             # Full Ensemble for local/higher-tier deployment
             GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
