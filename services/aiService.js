@@ -12,37 +12,28 @@ const HF_API_TOKEN = ""; // <-- PASTE YOUR HUGGING FACE TOKEN HERE
 const KINDWISE_API_URL = "https://api.plant.id/v2/health";
 const KINDWISE_API_TOKEN = ""; // <-- PASTE YOUR KINDWISE API KEY HERE (https://web.plant.id/)
 
-// Option C: Local Python Server (Real Detection on your machine)
-const LOCAL_API_URL = "https://green-doctor-q79x.onrender.com/predict";
+// Option C: Render Backend (Live Detection)
+const RENDER_API_URL = "https://green-doctor-q79x.onrender.com/predict";
 // ----------------------------------------------------------------------
 
 export const analyzeImage = async (imageUri) => {
     try {
         console.log("Analyzing image...");
 
-        // 1. Check if we have ANY valid key OR if Local Server is potentially active
-        // We will assume Local Server is always an option to try if keys are missing.
         const hasHfKey = HF_API_TOKEN && HF_API_TOKEN.length > 5;
         const hasKindwiseKey = KINDWISE_API_TOKEN && KINDWISE_API_TOKEN.length > 5;
 
-        // 2. Convert to Base64
-        // Logic: Some APIs need file upload, some base64. 
-        // Our Local FastAPI expects multipart upload, so we need a different approach for it if we use fetch.
-        // Or we can just send base64 to it and handle it in python. 
-        // Let's stick to Base64 for now as our Python code was updated to handle "file: UploadFile", 
-        // which implies multipart/form-data.
-
-        // Let's modify the local server call to use FileSystem.uploadAsync which is easier for multipart.
-
-        let localResult = null;
+        // 1. Try Render Backend First
         try {
-            console.log("Trying Local Server...");
-            const uploadResult = await FileSystem.uploadAsync(LOCAL_API_URL, imageUri, {
+            console.log("Trying Render Backend...");
+            const uploadResult = await FileSystem.uploadAsync(RENDER_API_URL, imageUri, {
                 httpMethod: 'POST',
                 uploadType: FileSystem.FileSystemUploadType.MULTIPART,
                 fieldName: 'file',
             });
-            console.log("Local Server Response:", uploadResult.status);
+
+            console.log("Render Backend Response:", uploadResult.status);
+
             if (uploadResult.status === 200) {
                 const data = JSON.parse(uploadResult.body);
 
@@ -70,41 +61,35 @@ export const analyzeImage = async (imageUri) => {
                 }
             }
         } catch (e) {
-            console.log("Local Server failed (likely offline):", e.message);
+            console.log("Render Backend failed (likely waking up or offline):", e.message);
         }
 
-        // If Local Server Worked, we returned. If not, continue to Cloud APIs.
-
+        // 2. Fallback to Cloud APIs if Render fails
         const base64 = await FileSystem.readAsStringAsync(imageUri, {
             encoding: 'base64',
         });
 
-        // 3. Try Kindwise First (Higher Accuracy)
         if (hasKindwiseKey) {
             return await analyzeWithKindwise(base64);
         }
 
-        // 4. Try Hugging Face Second
         if (hasHfKey) {
             return await analyzeWithHuggingFace(base64);
         }
 
-        // If NO keys and Local failed:
-        if (!localResult && !hasHfKey && !hasKindwiseKey) {
-            throw new Error("NO_API_KEY");
-        }
+        // If everything fails, throw to the main catch block
+        throw new Error("ALL_SERVICES_FAILED");
 
     } catch (error) {
         console.error("AI Service Error:", error);
 
-        // Fallback to Mock with a warning
-        // We import mockAI at the top now (or use a dynamic require safely)
+        // Fallback to Mock
         const { analyzeImage: mockAnalyze } = require('./mockAI');
         const mockResult = await mockAnalyze(imageUri);
 
         let errorMessage = "Offline Mode";
-        if (error.message === "NO_API_KEY") {
-            errorMessage = "No API Key Configured";
+        if (error.message === "NO_API_KEY" || error.message === "ALL_SERVICES_FAILED") {
+            errorMessage = "Using Demo Mode";
         } else {
             errorMessage = "Server Error (Backend)";
         }
@@ -132,7 +117,6 @@ async function analyzeWithHuggingFace(base64) {
     const predictions = await response.json();
     if (!predictions || !predictions[0]) throw new Error("HF_NO_PREDICTION");
 
-    // Mapping logic (same as before)
     const label = predictions[0].label;
     const disease = mapLabelToDisease(label);
     return { ...disease, confidence: Math.round(predictions[0].score * 100) };
@@ -158,15 +142,13 @@ async function analyzeWithKindwise(base64) {
     if (!data.health_assessment || !data.health_assessment.diseases) throw new Error("KINDWISE_NO_DATA");
 
     const topDisease = data.health_assessment.diseases[0];
-    const name = topDisease.name; // e.g., "early blight"
+    const name = topDisease.name;
 
-    // Simple fuzzy mapping
     let found = DISEASES.find(d => d.name.en.toLowerCase().includes(name.toLowerCase()));
 
     if (!found) {
-        // Create dynamic result if not in our DB
         return {
-            ...DISEASES[0], // borrowing structure
+            ...DISEASES[0],
             id: 'dynamic_' + Date.now(),
             name: { en: name, ta: name },
             confidence: Math.round(topDisease.probability * 100),
@@ -178,8 +160,6 @@ async function analyzeWithKindwise(base64) {
 }
 
 function mapLabelToDisease(label) {
-    // Basic mapping for Hugging Face model labels
-    // Reuse the previous mapping logic or import it
     const LABEL_MAP = {
         "Tomato___Early_blight": "tomato_early_blight",
         "Tomato___Late_blight": "tomato_late_blight",
@@ -195,7 +175,6 @@ function mapLabelToDisease(label) {
         if (d) return d;
     }
 
-    // Default fallback
     return {
         ...DISEASES[0],
         name: { en: `Detected: ${label}`, ta: `கண்டறியப்பட்டது: ${label}` }
