@@ -24,13 +24,24 @@ RUN python backend/download_models.py
 # Copy the rest of the application code
 COPY backend ./backend
 
-# Expose port 10000
-EXPOSE 10000
+# Expose port 7860 (Hugging Face Spaces Default)
+EXPOSE 7860
 
-# Set environment variables for Render
-ENV PORT=10000
-ENV RENDER=true
+# Set environment variables
+ENV HOST=0.0.0.0
+ENV PORT=7860
 ENV PYTHONUNBUFFERED=1
 
-# Command to run the application using uvicorn directly
-CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "10000"]
+# Create a non-root user with ID 1000 (Required for HF Spaces)
+RUN useradd -m -u 1000 user
+
+# Change ownership of the app directory to the new user
+RUN chown -R user:user /app
+
+USER user
+ENV HOME=/home/user \
+	PATH=/home/user/.local/bin:$PATH
+
+# Command to run the application
+# We use shell form to ensure environment variables are expanded correctly
+CMD ["sh", "-c", "uvicorn backend.app:app --host 0.0.0.0 --port $PORT"]
