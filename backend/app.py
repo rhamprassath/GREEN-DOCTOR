@@ -134,6 +134,15 @@ GENERAL_MAP = {
 def read_root():
     return {"message": "Green Doctor AI (Safetensors) is Ready"}
 
+@app.get("/debug")
+def debug_status():
+    return {
+        "general_expert_loaded": GENERAL_EXPERT is not None,
+        "rice_expert_loaded": RICE_EXPERT is not None,
+        "is_render": IS_RENDER,
+        "cpu_count": os.cpu_count()
+    }
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     print(f"Leaf Vision Processing: {file.filename}")
