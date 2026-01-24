@@ -4,7 +4,7 @@ This guide describes how to deploy the Green Doctor application, which consists 
 
 ## 1. Backend Deployment (Render)
 
-We recommend using **Render** for the backend because it natively supports Docker and is free to start.
+We recommend using **Hugging Face Spaces** or **Render** for the backend. Hugging Face is particularly good because it offers 16GB of RAM for free, which is great for our AI models.
 
 ### Prerequisites
 - A GitHub account.
@@ -21,6 +21,13 @@ We recommend using **Render** for the backend because it natively supports Docke
     - **Instance Type**: **Free** (or Starter for better performance).
 5.  Click **"Create Web Service"**.
 6.  Wait for the build to finish. Once deployed, copy the **Service URL** (e.g., `https://greendoctor-backend.onrender.com`).
+
+---
+
+## 1b. Backend Deployment (Hugging Face)
+
+For better performance (more RAM), you can use Hugging Face Spaces.
+See the [Hugging Face Deployment Guide](file:///d:/antigravity%20leaf%20disease/GreenDoctor/huggingface_deployment.md) for full instructions.
 
 ---
 
