@@ -167,9 +167,16 @@ async def predict(file: UploadFile = File(...)):
         if results_gen:
             ai_label = results_gen[0]['label']
             ai_score = results_gen[0]['score']
-            mapped = GENERAL_MAP.get(ai_label, "Tomato - Healthy")
-            if ai_score > best_prediction['score']:
-                best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
+            mapped = GENERAL_MAP.get(ai_label)
+            if mapped:
+                # If mapped, use the mapped name
+                if ai_score > best_prediction['score']:
+                    best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
+            else:
+                # If NOT mapped, still consider it if confidence is high, but mark as generic detection
+                # This fixes the "Tomato - Healthy" bug for lemons/oranges etc.
+                if ai_score > best_prediction['score']:
+                    best_prediction = {"class": f"Detected: {ai_label}", "score": ai_score, "expert": "General", "label": ai_label}
         
         # Check Multi-Crop Expert (ViT)
         if results_expert:
