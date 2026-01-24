@@ -2,7 +2,7 @@
 title: GreenDoctor Backend
 emoji: 🌿
 colorFrom: green
-colorTo: leaf
+colorTo: green
 sdk: docker
 app_port: 10000
 ---
