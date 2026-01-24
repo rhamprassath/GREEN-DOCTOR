@@ -4,6 +4,8 @@ Use this quick reference whenever you want to update your app.
 
 > **⚠️ Important**: You typically need **Git** installed to deploy the backend automatically. Since `git` was not found in your terminal, you might need to install it from [git-scm.com](https://git-scm.com/downloads) or use GitHub Desktop.
 
+> **🏁 Professional Workflow**: Use `git sync-all` to push to both GitHub and Hugging Face simultaneously.
+
 ## 1. Backend Updates (Hugging Face)
 **When:** You want better performance (16GB RAM).
 

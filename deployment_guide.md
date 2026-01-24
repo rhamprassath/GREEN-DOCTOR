@@ -24,6 +24,35 @@ We recommend using **Hugging Face Spaces** or **Render** for the backend. Huggin
 
 ---
 
+## 2. Professional Git Workflow (Dual-Sync)
+
+For a professional workflow that keeps both GitHub and Hugging Face in sync, follow these steps:
+
+### Prerequisites:
+1.  **Hugging Face CLI**: `pip install -U "huggingface_hub[cli]"`
+2.  **Login**: `hf auth login` (using your Write Token).
+
+### Configuration (One-time):
+Run these commands to link your local folder to both remotes:
+```bash
+# Add Hugging Face remote
+git remote add hf https://huggingface.co/spaces/RHAMPRASSATH/greendoctor-backend
+
+# Set up a sync shortcut
+git config alias.sync-all "!git push origin master ; git push hf master"
+```
+
+### Daily Usage:
+Whenever you make a change, just run:
+```bash
+git add .
+git commit -m "Your message"
+git sync-all
+```
+This will automatically update **both** GitHub and Hugging Face in one go!
+
+---
+
 ## 1b. Backend Deployment (Hugging Face)
 
 For better performance (more RAM), you can use Hugging Face Spaces.
