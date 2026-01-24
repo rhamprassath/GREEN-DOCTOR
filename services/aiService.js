@@ -12,8 +12,8 @@ const HF_API_TOKEN = ""; // <-- PASTE YOUR HUGGING FACE TOKEN HERE
 const KINDWISE_API_URL = "https://api.plant.id/v2/health";
 const KINDWISE_API_TOKEN = ""; // <-- PASTE YOUR KINDWISE API KEY HERE (https://web.plant.id/)
 
-// Option C: Render Backend (Live Detection)
-const RENDER_API_URL = "https://green-doctor-q79x.onrender.com/predict";
+// Option C: Custom Backend (Hugging Face / Render)
+const BACKEND_API_URL = "https://rhamprassath-greendoctor-backend.hf.space/predict";
 // ----------------------------------------------------------------------
 
 export const analyzeImage = async (imageUri) => {
@@ -23,10 +23,10 @@ export const analyzeImage = async (imageUri) => {
         const hasHfKey = HF_API_TOKEN && HF_API_TOKEN.length > 5;
         const hasKindwiseKey = KINDWISE_API_TOKEN && KINDWISE_API_TOKEN.length > 5;
 
-        // 1. Try Render Backend First
+        // 1. Try Custom Backend First
         try {
-            console.log("Trying Render Backend...");
-            const uploadResult = await FileSystem.uploadAsync(RENDER_API_URL, imageUri, {
+            console.log("Trying Backend...");
+            const uploadResult = await FileSystem.uploadAsync(BACKEND_API_URL, imageUri, {
                 httpMethod: 'POST',
                 uploadType: FileSystem.FileSystemUploadType.MULTIPART,
                 fieldName: 'file',
