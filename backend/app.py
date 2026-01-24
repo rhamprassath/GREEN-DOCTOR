@@ -41,20 +41,12 @@ def get_experts():
     if GENERAL_EXPERT is None:
         print("Loading AI Experts (Expert Ensemble Initializing)...")
         
-        # In Render Free Tier (512MB), we only load the RICE expert to prevent OOM
-        if IS_RENDER:
-            print("RENDER DETECTED: Running in LITE mode (Specific Rice Expert)")
-            # Use the actual Rice disease model instead of generic swin-tiny
-            # This ensures mapping (Rice___Brown_Spot, etc.) works correctly
-            RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
-            GENERAL_EXPERT = None
-            torch.set_grad_enabled(False) # Disable gradient tracking to save RAM
-            gc.collect() # Force cleanup after loading
-        else:
-            # Full Ensemble for local/higher-tier deployment
-            GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
-            RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
-            torch.set_grad_enabled(False)
+        # Restore Full Ensemble for both local and Render
+        GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
+        RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
+        
+        torch.set_grad_enabled(False) # Disable gradient tracking to save RAM
+        gc.collect() # Force cleanup after loading
         
         SUGARCANE_EXPERT = None
     return GENERAL_EXPERT, RICE_EXPERT, SUGARCANE_EXPERT
