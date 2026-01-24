@@ -31,6 +31,7 @@ EXPOSE 7860
 ENV HOST=0.0.0.0
 ENV PORT=7860
 ENV PYTHONUNBUFFERED=1
+ENV TF_USE_LEGACY_KERAS=1
 
 # Create a non-root user with ID 1000 (Required for HF Spaces)
 RUN useradd -m -u 1000 user
