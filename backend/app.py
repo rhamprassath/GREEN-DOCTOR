@@ -136,6 +136,7 @@ def read_root():
 
 @app.get("/debug")
 def debug_status():
+    get_experts() # Trigger loading if not already loaded
     return {
         "general_expert_loaded": GENERAL_EXPERT is not None,
         "rice_expert_loaded": RICE_EXPERT is not None,
