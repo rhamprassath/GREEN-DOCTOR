@@ -59,32 +59,42 @@ def focalize_leaf(image_bytes):
     import numpy as np
     import cv2
     """
-    Expert Focalizer: Uses computer vision to find the leaf and crop it.
+    Expert Focalizer: Uses computer vision to find the leaf, crop it, and calculate density.
+    Returns: (PIL Image, density_percentage)
     """
     try:
         # 1. Convert to OpenCV format
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None: return None
+        if img is None: return None, 0.0
         
         # 2. Convert to HSV for better color segmentation
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         
         # 3. Create mask for plant-like colors (Green, Yellow, Brown)
-        # We target a wide range of leaf colors including diseased ones
         mask_green = cv2.inRange(hsv, (25, 40, 40), (90, 255, 255))
         mask_brown = cv2.inRange(hsv, (10, 50, 20), (30, 255, 200))
         mask = cv2.bitwise_or(mask_green, mask_brown)
         
-        # 4. Find the largest contour (assuming it's the leaf)
+        # 4. Calculate Leaf Density
+        total_pixels = img.shape[0] * img.shape[1]
+        plant_pixels = cv2.countNonZero(mask)
+        density = (plant_pixels / total_pixels) * 100
+        
+        # Rejection Threshold: If less than 2.5% of the image is plant-like, it's likely not a leaf
+        if density < 2.5:
+             print(f"Leaf Validation FAILED: Density {density:.2f}% < 2.5%")
+             return None, density
+
+        # 5. Find the largest contour (assuming it's the leaf)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
-            return Image.open(io.BytesIO(image_bytes)).convert('RGB') # Fallback to original
+            return Image.open(io.BytesIO(image_bytes)).convert('RGB'), density
             
         largest_cnt = max(contours, key=cv2.contourArea)
         x, y, w, h = cv2.boundingRect(largest_cnt)
         
-        # 5. Add padding (20%)
+        # 6. Add padding (20%)
         padding_w = int(w * 0.2)
         padding_h = int(h * 0.2)
         
@@ -95,12 +105,12 @@ def focalize_leaf(image_bytes):
         
         crop = img[y_pad:y_pad+h_pad, x_pad:x_pad+w_pad]
         
-        # 6. Convert back to PIL for Transformers
+        # 7. Convert back to PIL for Transformers
         crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
-        return Image.fromarray(crop_rgb)
+        return Image.fromarray(crop_rgb), density
     except Exception as e:
         print(f"Focalizer Warning: {e}")
-        return Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        return Image.open(io.BytesIO(image_bytes)).convert('RGB'), 0.0
 
 # --- MAPPINGS ---
 # Comprehensive Expert Mapping (Matches wambugu71/crop_leaf_diseases_vit)
@@ -173,14 +183,21 @@ def debug_status():
 async def predict(file: UploadFile = File(...)):
     print(f"Leaf Vision Processing: {file.filename}")
     try:
-        gen_expert, rice_expert, sugar_expert = get_experts()
+        gen_expert, rice_expert, plant_specialist = get_experts()
         contents = await file.read()
         
-        # 0. LEAF FOCALIZER: Pre-process the image for professional precision
-        image = focalize_leaf(contents)
-        if image is None:
-            image = Image.open(io.BytesIO(contents)).convert('RGB')
+        # 0. LEAF FOCALIZER: Pre-process and VALIDATE if it's a leaf
+        image, density = focalize_leaf(contents)
         
+        if image is None:
+            print(f"REJECTED: Low Leaf Density ({density:.2f}%)")
+            return {
+                "class": "UNKNOWN",
+                "confidence": 0.0,
+                "ai_details": f"Quality Check: Low Leaf Density ({density:.1f}%)",
+                "status": "success"
+            }
+
         # 1. RUN ALL EXPERTS (with safety checks)
         results_gen = GENERAL_EXPERT(image) if GENERAL_EXPERT else []
         results_rice = RICE_EXPERT(image) if RICE_EXPERT else []
@@ -194,14 +211,13 @@ async def predict(file: UploadFile = File(...)):
             ai_label = results_specialist[0]['label']
             ai_score = results_specialist[0]['score']
             mapped = PLANT_VILLAGE_MAP.get(ai_label)
-            if mapped and ai_score > 0.40:
+            if mapped and ai_score > 0.45: # Raised from 0.40
                 best_prediction = {"class": mapped, "score": ai_score, "expert": "Specialist", "label": ai_label}
 
         # Pass 2: Rice/Wheat Specialist (Priority for Cereals)
         if results_rice:
             ai_label = results_rice[0]['label']
             ai_score = results_rice[0]['score']
-            # Re-keying to match labels for wambugu71/crop_leaf_diseases_vit
             RICE_LEGACY_MAP = {
                 'Rice___Brown_Spot': 'Paddy - Brown Spot', 'Rice___Healthy': 'Paddy - Healthy', 'Rice___Leaf_Blast': 'Paddy - Blast',
                 'Corn___Common_Rust': 'Corn - Common Rust', 'Corn___Gray_Leaf_Spot': 'Corn - Gray Leaf Spot', 'Corn___Healthy': 'Corn - Healthy',
@@ -209,24 +225,23 @@ async def predict(file: UploadFile = File(...)):
             }
             mapped = RICE_LEGACY_MAP.get(ai_label)
             # Prioritize specialists if they have high confidence
-            if mapped and (ai_score > 0.50 or (mapped.startswith("Paddy") and ai_score > 0.35)):
+            if mapped and (ai_score > 0.60 or (mapped.startswith("Paddy") and ai_score > 0.45)):
                 if ai_score > best_prediction['score']:
                     best_prediction = {"class": mapped, "score": ai_score, "expert": "Cereal Expert", "label": ai_label}
 
-        # Pass 3: General Expert (Fallback for visual recognition)
-        if results_gen and best_prediction['score'] < 0.30:
+        # Pass 3: General Expert (Strict Fallback)
+        if results_gen and best_prediction['score'] < 0.40:
             ai_label = results_gen[0]['label']
             ai_score = results_gen[0]['score']
             mapped = GENERAL_MAP.get(ai_label)
-            if mapped:
+            if mapped and ai_score > 0.60: # High threshold for general mapping
                 if ai_score > best_prediction['score']:
                     best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
-            else:
-                if ai_score > best_prediction['score'] and ai_score > 0.60:
-                    best_prediction = {"class": f"Detected: {ai_label}", "score": ai_score, "expert": "General", "label": ai_label}
+            elif ai_score > 0.85: # Extremely high threshold for raw labels
+                best_prediction = {"class": f"Detected: {ai_label}", "score": ai_score, "expert": "General", "label": ai_label}
         
-        # PLANTIX LOGIC: Final check
-        CONFIDENCE_THRESHOLD = 0.35
+        # PLANTIX LOGIC: Final check (Stricter threshold)
+        CONFIDENCE_THRESHOLD = 0.45 # Raised from 0.35
         
         if best_prediction['score'] < CONFIDENCE_THRESHOLD:
             final_class = "UNKNOWN"
@@ -238,7 +253,7 @@ async def predict(file: UploadFile = File(...)):
         return {
             "class": final_class,
             "confidence": float(best_prediction['score']),
-            "ai_details": f"{best_prediction['expert']}: {best_prediction.get('label', 'None')}",
+            "ai_details": f"{best_prediction['expert']}: {best_prediction.get('label', 'None')} (Density: {density:.1f}%)",
             "status": "success"
         }
     except Exception as e:

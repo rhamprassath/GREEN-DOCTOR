@@ -6,13 +6,13 @@ export const DISEASES = [
         isHealthy: false,
         severity: 'N/A',
         symptoms: {
-            en: "The AI cannot find a clear match. The image may be unclear, or the leaf condition is not recognized.",
-            ta: "AI-ஆல் சரியான முடிவைக் கண்டறிய முடியவில்லை. படம் மங்கலாக இருக்கலாம் அல்லது இலை நிலை அடையாளம் காணப்படவில்லை."
+            en: "No leaf detected or detection confidence is low. The image may be too blurry, random (non-plant), or the leaf is too far away.",
+            ta: "இலை அடையாளம் காணப்படவில்லை அல்லது துல்லியம் குறைவாக உள்ளது. படம் மங்கலாக இருக்கலாம் அல்லது செடியல்லாத மற்ற பொருளாக இருக்கலாம்."
         },
-        cause: { en: "Image quality issues or rare plant variety.", ta: "படத்தின் தரம் குறைவு அல்லது அரிதான தாவர வகை." },
+        cause: { en: "Non-plant image or poor photo quality.", ta: "செடியல்லாத படம் அல்லது படத்தின் தரம் குறைவு." },
         remedy_organic: {
-            en: "1. Clean the leaf surface. 2. Take a photo in bright, indirect sunlight. 3. Focus on a single leaf showing clear symptoms.",
-            ta: "1. இலையின் மேற்பரப்பை சுத்தம் செய்யவும். 2. பிரகாசமான சூரிய ஒளியில் புகைப்படம் எடுக்கவும். 3. நோய் அறிகுறிகள் உள்ள ஒரு இலையில் மட்டும் கவனம் செலுத்தவும்."
+            en: "1. Ensure the leaf is the main subject. 2. Clear background. 3. Good lighting. 4. Hold the camera closer (10-15cm).",
+            ta: "1. இலையை படத்தின் மையத்தில் வைக்கவும். 2. பின்புலத்தை சுத்தமாக வைக்கவும். 3. நல்ல வெளிச்சத்தில் படம் எடுக்கவும். 4. கேமராவை சற்று நெருக்கமாக (10-15 செ.மீ) பிடிக்கவும்."
         },
         remedy_chemical: {
             en: "Do not apply chemical pesticides until a clear diagnosis is made by an expert.",
