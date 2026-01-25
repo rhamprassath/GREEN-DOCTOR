@@ -32,24 +32,28 @@ app.add_middleware(
 GENERAL_EXPERT = None
 # Expert 2: Paddy (Rice) Expert
 RICE_EXPERT = None
-# Expert 3: Sugarcane Expert
-SUGARCANE_EXPERT = None
+# Expert 3: Plant Disease Specialist (38 Categories)
+PLANT_SPECIALIST = None
 
 def get_experts():
     from transformers import pipeline # Lazy import to save memory during startup
-    global GENERAL_EXPERT, RICE_EXPERT, SUGARCANE_EXPERT
+    global GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST
     if GENERAL_EXPERT is None:
         print("Loading AI Experts (Expert Ensemble Initializing)...")
         
-        # Restore Full Ensemble for both local and Render
+        # Expert 1: General Feature Extractor
         GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
+        
+        # Expert 2: Crop ViT (Rice, Wheat, Corn specialists)
         RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
+        
+        # Expert 3: Plant Village Specialist (38 disease categories)
+        PLANT_SPECIALIST = pipeline("image-classification", model="linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification")
         
         torch.set_grad_enabled(False) # Disable gradient tracking to save RAM
         gc.collect() # Force cleanup after loading
         
-        SUGARCANE_EXPERT = None
-    return GENERAL_EXPERT, RICE_EXPERT, SUGARCANE_EXPERT
+    return GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST
 
 def focalize_leaf(image_bytes):
     import numpy as np
@@ -100,24 +104,46 @@ def focalize_leaf(image_bytes):
 
 # --- MAPPINGS ---
 # Comprehensive Expert Mapping (Matches wambugu71/crop_leaf_diseases_vit)
-EXPERT_MAP = {
-    # Rice
-    'Rice___Brown_Spot': 'Paddy - Brown Spot',
-    'Rice___Healthy': 'Paddy - Healthy',
-    'Rice___Leaf_Blast': 'Paddy - Blast',
-    # Corn
-    'Corn___Common_Rust': 'Corn - Common Rust',
-    'Corn___Gray_Leaf_Spot': 'Corn - Gray Leaf Spot',
-    'Corn___Healthy': 'Corn - Healthy',
-    'Corn___Northern_Leaf_Blight': 'Corn - Gray Leaf Spot', # Map to nearest if not in DB
-    # Potato
-    'Potato___Early_Blight': 'Potato - Early Blight',
-    'Potato___Healthy': 'Potato - Healthy',
-    'Potato___Late_Blight': 'Potato - Late Blight',
-    # Wheat
-    'Wheat___Brown_Rust': 'Wheat - Brown Rust',
-    'Wheat___Healthy': 'Wheat - Healthy',
-    'Wheat___Yellow_Rust': 'Wheat - Yellow Rust',
+# Comprehensive Specialist Mapping (Matches linkanjarad/mobilenet_v2)
+PLANT_VILLAGE_MAP = {
+    "Apple___Apple_scab": "Apple - Scab",
+    "Apple___Black_rot": "Apple - Black Rot",
+    "Apple___Cedar_apple_rust": "Apple - Cedar Rust",
+    "Apple___healthy": "Apple - Healthy",
+    "Blueberry___healthy": "Blueberry - Healthy",
+    "Cherry_(including_sour)___Powdery_mildew": "Cherry - Powdery Mildew",
+    "Cherry_(including_sour)___healthy": "Cherry - Healthy",
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": "Corn - Gray Leaf Spot",
+    "Corn_(maize)___Common_rust_": "Corn - Common Rust",
+    "Corn_(maize)___Northern_Leaf_Blight": "Corn - Leaf Blight",
+    "Corn_(maize)___healthy": "Corn - Healthy",
+    "Grape___Black_rot": "Grape - Black Rot",
+    "Grape___Esca_(Black_Measles)": "Grape - Black Measles",
+    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": "Grape - Leaf Blight",
+    "Grape___healthy": "Grape - Healthy",
+    "Orange___Haunglongbing_(Citrus_greening)": "Orange - Huanglongbing (Greening)",
+    "Peach___Bacterial_spot": "Peach - Bacterial Spot",
+    "Peach___healthy": "Peach - Healthy",
+    "Pepper,_bell___Bacterial_spot": "Pepper - Bacterial Spot",
+    "Pepper,_bell___healthy": "Pepper - Healthy",
+    "Potato___Early_blight": "Potato - Early Blight",
+    "Potato___Late_blight": "Potato - Late Blight",
+    "Potato___healthy": "Potato - Healthy",
+    "Raspberry___healthy": "Raspberry - Healthy",
+    "Soybean___healthy": "Soybean - Healthy",
+    "Squash___Powdery_mildew": "Squash - Powdery Mildew",
+    "Strawberry___Leaf_scorch": "Strawberry - Leaf Scorch",
+    "Strawberry___healthy": "Strawberry - Healthy",
+    "Tomato___Bacterial_spot": "Tomato - Bacterial Spot",
+    "Tomato___Early_blight": "Tomato - Early Blight",
+    "Tomato___Late_blight": "Tomato - Late Blight",
+    "Tomato___Leaf_Mold": "Tomato - Leaf Mold",
+    "Tomato___Septoria_leaf_spot": "Tomato - Septoria Spot",
+    "Tomato___Spider_mites Two-spotted_spider_mite": "Tomato - Spider Mite",
+    "Tomato___Target_Spot": "Tomato - Target Spot",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": "Tomato - Yellow Leaf Curl",
+    "Tomato___Tomato_mosaic_virus": "Tomato - Mosaic Virus",
+    "Tomato___healthy": "Tomato - Healthy"
 }
 
 # Legacy Mappings (Fallback for General Expert)
@@ -125,9 +151,8 @@ GENERAL_MAP = {
     'corn': "Corn - Healthy",
     'potato': "Potato - Healthy",
     'tomato': "Tomato - Healthy",
-    'bell pepper': "Chilli - Healthy",
-    'cucumber': "Chilli - Anthracnose (Fruit Rot)",
-    'zucchini': "Brinjal - Phomopsis Blight",
+    'rice': "Paddy - Healthy",
+    'chilli': "Chilli - Healthy",
 }
 
 @app.api_route("/", methods=["GET", "HEAD"])
@@ -158,41 +183,54 @@ async def predict(file: UploadFile = File(...)):
         
         # 1. RUN ALL EXPERTS (with safety checks)
         results_gen = GENERAL_EXPERT(image) if GENERAL_EXPERT else []
-        results_expert = RICE_EXPERT(image) if RICE_EXPERT else []
+        results_rice = RICE_EXPERT(image) if RICE_EXPERT else []
+        results_specialist = PLANT_SPECIALIST(image) if PLANT_SPECIALIST else []
         
         # 2. ENSEMBLE LOGIC: Pick the winner based on confidence
         best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none", "label": "None"}
         
-        # Check General (Swin Transformer)
-        if results_gen:
+        # Pass 1: Plant Village Specialist (Most accurate for 38 categories)
+        if results_specialist:
+            ai_label = results_specialist[0]['label']
+            ai_score = results_specialist[0]['score']
+            mapped = PLANT_VILLAGE_MAP.get(ai_label)
+            if mapped and ai_score > 0.40:
+                best_prediction = {"class": mapped, "score": ai_score, "expert": "Specialist", "label": ai_label}
+
+        # Pass 2: Rice/Wheat Specialist (Priority for Cereals)
+        if results_rice:
+            ai_label = results_rice[0]['label']
+            ai_score = results_rice[0]['score']
+            # Re-keying to match labels for wambugu71/crop_leaf_diseases_vit
+            RICE_LEGACY_MAP = {
+                'Rice___Brown_Spot': 'Paddy - Brown Spot', 'Rice___Healthy': 'Paddy - Healthy', 'Rice___Leaf_Blast': 'Paddy - Blast',
+                'Corn___Common_Rust': 'Corn - Common Rust', 'Corn___Gray_Leaf_Spot': 'Corn - Gray Leaf Spot', 'Corn___Healthy': 'Corn - Healthy',
+                'Potato___Early_Blight': 'Potato - Early Blight', 'Potato___Healthy': 'Potato - Healthy', 'Potato___Late_Blight': 'Potato - Late Blight'
+            }
+            mapped = RICE_LEGACY_MAP.get(ai_label)
+            # Prioritize specialists if they have high confidence
+            if mapped and (ai_score > 0.50 or (mapped.startswith("Paddy") and ai_score > 0.35)):
+                if ai_score > best_prediction['score']:
+                    best_prediction = {"class": mapped, "score": ai_score, "expert": "Cereal Expert", "label": ai_label}
+
+        # Pass 3: General Expert (Fallback for visual recognition)
+        if results_gen and best_prediction['score'] < 0.30:
             ai_label = results_gen[0]['label']
             ai_score = results_gen[0]['score']
             mapped = GENERAL_MAP.get(ai_label)
             if mapped:
-                # If mapped, use the mapped name
                 if ai_score > best_prediction['score']:
                     best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
             else:
-                # If NOT mapped, still consider it if confidence is high, but mark as generic detection
-                # This fixes the "Tomato - Healthy" bug for lemons/oranges etc.
-                if ai_score > best_prediction['score']:
+                if ai_score > best_prediction['score'] and ai_score > 0.60:
                     best_prediction = {"class": f"Detected: {ai_label}", "score": ai_score, "expert": "General", "label": ai_label}
         
-        # Check Multi-Crop Expert (ViT)
-        if results_expert:
-            ai_label = results_expert[0]['label']
-            ai_score = results_expert[0]['score']
-            mapped = EXPERT_MAP.get(ai_label)
-            # Specific experts take priority if they have a clear match (>45% confidence)
-            if mapped and ai_score > 0.45: 
-                 best_prediction = {"class": mapped, "score": ai_score, "expert": "Specific Plant Expert", "label": ai_label}
-        
         # PLANTIX LOGIC: Final check
-        CONFIDENCE_THRESHOLD = 0.40
+        CONFIDENCE_THRESHOLD = 0.35
         
         if best_prediction['score'] < CONFIDENCE_THRESHOLD:
             final_class = "UNKNOWN"
-            print(f"UNCERTAIN Ensemble: {best_prediction['label']} ({best_prediction['score']*100:.1f}%) < Threshold")
+            print(f"UNCERTAIN Ensemble: {best_prediction.get('label', 'None')} ({best_prediction['score']*100:.1f}%) < Threshold")
         else:
             final_class = best_prediction['class']
             print(f"WINNER [{best_prediction['expert']}]: {best_prediction.get('label', 'None')} -> {final_class} ({best_prediction['score']*100:.1f}%)")

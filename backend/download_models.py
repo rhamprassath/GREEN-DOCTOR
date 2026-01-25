@@ -19,5 +19,12 @@ def download_models():
     except Exception as e:
         print(f"Rice Expert Failed: {e}")
 
+    print("Downloading Plant Specialist (MobileNetV2)...")
+    try:
+        pipeline("image-classification", model="linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification")
+        print("Plant Specialist Downloaded!")
+    except Exception as e:
+        print(f"Plant Specialist Failed: {e}")
+
 if __name__ == "__main__":
     download_models()
