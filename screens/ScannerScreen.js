@@ -1,45 +1,74 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, StatusBar, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, StatusBar, ActivityIndicator, Easing } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { TRANSLATIONS } from '../constants/translations';
 import { analyzeImage } from '../services/aiService';
 
 const { width, height } = Dimensions.get('window');
+const SCAN_SIZE = width * 0.75;
 
 const ScannerScreen = ({ navigation, route }) => {
     const language = route.params?.language || 'en';
     const t = TRANSLATIONS[language] || TRANSLATIONS['en'];
 
     const [permission, requestPermission] = useCameraPermissions();
+    const [scanMode, setScanMode] = useState('auto'); // 'auto' or 'manual'
     const [isScanning, setIsScanning] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [lastScanResult, setLastScanResult] = useState(null);
+    const [statusMessage, setStatusMessage] = useState('LOOKING FOR LEAVES...');
 
-    // Animation for the scanning pulse
+    // Animations
+    const laserAnim = useRef(new Animated.Value(0)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const cameraRef = useRef(null);
 
     useEffect(() => {
-        if (isScanning) {
-            startPulse();
+        if (isScanning && scanMode === 'auto') {
+            startAnimations();
             const interval = setInterval(() => {
-                if (!loading && isScanning) {
+                if (!loading && isScanning && scanMode === 'auto') {
                     autoCapture();
                 }
-            }, 2000); // Polling every 2 seconds for balance between real-time and server load
+            }, 3000);
             return () => {
                 clearInterval(interval);
+                laserAnim.stopAnimation();
+                pulseAnim.stopAnimation();
+            };
+        } else if (isScanning && scanMode === 'manual') {
+            startAnimations();
+            return () => {
+                laserAnim.stopAnimation();
                 pulseAnim.stopAnimation();
             };
         }
-    }, [isScanning, loading]);
+    }, [isScanning, loading, scanMode]);
 
-    const startPulse = () => {
+    const startAnimations = () => {
+        // Laser Sweep
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(laserAnim, {
+                    toValue: SCAN_SIZE - 4,
+                    duration: 2000,
+                    easing: Easing.inOut(Easing.quad),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(laserAnim, {
+                    toValue: 0,
+                    duration: 2000,
+                    easing: Easing.inOut(Easing.quad),
+                    useNativeDriver: true,
+                })
+            ])
+        ).start();
+
+        // Frame Pulse
         Animated.loop(
             Animated.sequence([
                 Animated.timing(pulseAnim, {
-                    toValue: 1.2,
+                    toValue: 1.05,
                     duration: 1000,
                     useNativeDriver: true,
                 }),
@@ -53,44 +82,58 @@ const ScannerScreen = ({ navigation, route }) => {
     };
 
     const autoCapture = async () => {
-        if (!cameraRef.current) return;
+        if (!cameraRef.current || loading || !isScanning || scanMode !== 'auto') return;
+        performCapture();
+    };
+
+    const performCapture = async () => {
+        if (!cameraRef.current || loading) return;
 
         try {
             setLoading(true);
+            setStatusMessage(scanMode === 'auto' ? 'ANALYZING DETAILS...' : 'CAPTURING...');
+
             const photo = await cameraRef.current.takePictureAsync({
-                quality: 0.5, // Lower quality for faster real-time processing
+                quality: 0.7,
                 base64: false,
             });
 
             const result = await analyzeImage(photo.uri);
 
             if (result && result.status === 'success') {
-                setLastScanResult(result);
-                // If high confidence, stop and show result
-                if (result.confidence > 0.85) {
+                // In auto mode, we need high confidence to auto-navigate
+                // In manual mode, we always navigate on button press
+                if (scanMode === 'manual' || (result.confidence > 0.45)) {
                     setIsScanning(false);
                     navigation.navigate('Result', {
                         imageUri: photo.uri,
                         analysisResult: result,
                         language
                     });
+                } else {
+                    setStatusMessage('HOLD STEADY...');
                 }
             }
         } catch (error) {
             console.log("Scanner Error:", error);
+            setStatusMessage('POOR LIGHTING? TRY AGAIN');
         } finally {
             setLoading(false);
+            if (isScanning) setTimeout(() => setStatusMessage(scanMode === 'auto' ? 'LOOKING FOR LEAVES...' : 'READY FOR CAPTURE'), 1000);
         }
     };
 
-    if (!permission) return <View />;
+    if (!permission) return <View style={styles.container} />;
     if (!permission.granted) {
         return (
             <View style={styles.container}>
-                <Text style={styles.text}>{t.cameraPermissionMessage}</Text>
-                <TouchableOpacity onPress={requestPermission} style={styles.button}>
-                    <Text style={styles.buttonText}>{t.grantPermission}</Text>
-                </TouchableOpacity>
+                <View style={styles.permissionBox}>
+                    <Text style={styles.permissionIcon}>📷</Text>
+                    <Text style={styles.text}>{language === 'ta' ? "கேமரா அனுமதி தேவை" : "Camera Access Needed"}</Text>
+                    <TouchableOpacity onPress={requestPermission} style={styles.grantButton}>
+                        <Text style={styles.grantButtonText}>{t.grantPermission}</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         );
     }
@@ -102,56 +145,124 @@ const ScannerScreen = ({ navigation, route }) => {
                 style={StyleSheet.absoluteFill}
                 facing="back"
                 ref={cameraRef}
+                shutterSound={false}
             />
 
-            {/* Scanning Overlay */}
-            <View style={styles.overlay}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backIcon}>✕</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.headerText}>{t.scanning || 'Scanning...'}</Text>
+            {/* Immersive Overlay */}
+            <View style={styles.maskContainer}>
+                <View style={styles.maskSide} />
+                <View style={styles.maskMiddle}>
+                    <View style={styles.maskSide} />
+                    <View style={styles.scanHole}>
+                        <Animated.View style={[styles.laser, { transform: [{ translateY: laserAnim }] }]} />
+                        <Animated.View style={[styles.cornerFrame, { transform: [{ scale: pulseAnim }] }]}>
+                            <View style={[styles.corner, styles.topLeft]} />
+                            <View style={[styles.corner, styles.topRight]} />
+                            <View style={[styles.corner, styles.bottomLeft]} />
+                            <View style={[styles.corner, styles.bottomRight]} />
+                        </Animated.View>
+
+                        {/* Technical HUD Details */}
+                        <View style={styles.hudTechnicalLeft}>
+                            <View style={styles.hudLine} />
+                            <Text style={styles.hudTechText}>LR-24</Text>
+                        </View>
+                        <View style={styles.hudTechnicalRight}>
+                            <Text style={styles.hudTechText}>AF-ON</Text>
+                            <View style={styles.hudLine} />
+                        </View>
+                    </View>
+                    <View style={styles.maskSide} />
+                </View>
+                <View style={styles.maskSide} />
+            </View>
+
+            {/* UI UI Controls */}
+            <View style={styles.uiContainer}>
+                {/* Header Elevation */}
+                <View style={styles.topRegion}>
+                    <View style={styles.appHeaderRow}>
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.glassBtn}>
+                            <Text style={styles.glassBtnText}>✕</Text>
+                        </TouchableOpacity>
+
+                        {/* High-Tech Mode Selector */}
+                        <View style={styles.premiumSwitch}>
+                            <TouchableOpacity
+                                style={[styles.switchTab, scanMode === 'auto' && styles.activeSwitchTab]}
+                                onPress={() => setScanMode('auto')}
+                            >
+                                <Text style={[styles.switchTabText, scanMode === 'auto' && styles.activeSwitchTabText]}>
+                                    {t.autoScan}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.switchTab, scanMode === 'manual' && styles.activeSwitchTab]}
+                                onPress={() => setScanMode('manual')}
+                            >
+                                <Text style={[styles.switchTabText, scanMode === 'manual' && styles.activeSwitchTabText]}>
+                                    {t.manualCapture}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={{ width: 44 }} />
+                    </View>
+
+                    <View style={styles.statusDisplay}>
+                        <View style={styles.statusPill}>
+                            <View style={[styles.pulseDot, { backgroundColor: loading ? COLORS.warning : (scanMode === 'auto' ? '#4ade80' : '#fbbf24') }]} />
+                            <Text style={styles.statusPillText}>{statusMessage}</Text>
+                        </View>
+                    </View>
                 </View>
 
-                <View style={styles.guideContainer}>
-                    <Animated.View style={[
-                        styles.scannerFrame,
-                        { transform: [{ scale: pulseAnim }], borderColor: loading ? COLORS.primary : COLORS.white }
-                    ]}>
-                        <View style={styles.cornerTopLeft} />
-                        <View style={styles.cornerTopRight} />
-                        <View style={styles.cornerBottomLeft} />
-                        <View style={styles.cornerBottomRight} />
-                    </Animated.View>
-                </View>
-
-                <View style={styles.footer}>
-                    {loading ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={COLORS.secondary} />
-                            <Text style={styles.loadingText}>{t.analyzing || 'Analyzing...'}</Text>
-                        </View>
-                    ) : (
-                        <View style={styles.infoBox}>
-                            <Text style={styles.guideText}>{t.scannerTip || 'Point camera at leaf for instant diagnosis'}</Text>
-                            {lastScanResult && (
-                                <View style={styles.miniResult}>
-                                    <Text style={styles.miniResultText}>
-                                        Last Check: {lastScanResult.class} ({(lastScanResult.confidence * 100).toFixed(0)}%)
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                    )}
-
-                    <TouchableOpacity
-                        style={styles.manualButton}
-                        onPress={() => setIsScanning(!isScanning)}
-                    >
-                        <Text style={styles.manualButtonText}>
-                            {isScanning ? 'PAUSE' : 'RESUME SCAN'}
+                {/* Footer elevation */}
+                <View style={styles.bottomRegion}>
+                    <View style={styles.hintBox}>
+                        <Text style={styles.instructionText}>
+                            {scanMode === 'auto'
+                                ? (language === 'ta' ? "இலையை சட்டத்திற்குள் வைக்கவும்" : "AI IS LOOKING FOR DISEASES AUTOMATICALLY")
+                                : (language === 'ta' ? "புகைப்படம் எடுக்க பட்டனை அழுத்தவும்" : "TAP TO CAPTURE MANUALLY")}
                         </Text>
-                    </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.controlCenter}>
+                        <TouchableOpacity style={styles.secondaryCircle} onPress={() => navigation.navigate('About')}>
+                            <Text style={{ fontSize: 24 }}>❓</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.mainShutterOuter}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.masterShutter,
+                                    loading && styles.shutterBusy,
+                                    scanMode === 'auto' && styles.shutterAutoMode
+                                ]}
+                                onPress={performCapture}
+                                disabled={loading}
+                            >
+                                <View style={[styles.shutterInnerRing, scanMode === 'auto' && styles.shutterInnerAutoRing]}>
+                                    {loading ? (
+                                        <ActivityIndicator color="white" />
+                                    ) : (
+                                        scanMode === 'manual' ? (
+                                            <View style={styles.manualCore} />
+                                        ) : (
+                                            <Text style={styles.robotIcon}>🤖</Text>
+                                        )
+                                    )}
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.secondaryCircle}
+                            onPress={() => setIsScanning(!isScanning)}
+                        >
+                            <Text style={{ fontSize: 24 }}>{isScanning ? '⏸️' : '▶️'}</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </View>
@@ -161,157 +272,264 @@ const ScannerScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: 'black',
+        backgroundColor: '#000',
     },
-    overlay: {
+    maskContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    maskSide: {
         flex: 1,
-        justify_content: 'space-between',
-        padding: 20,
+        width: '100%',
+        backgroundColor: 'rgba(0,0,0,0.65)',
     },
-    header: {
+    maskMiddle: {
+        flexDirection: 'row',
+        height: SCAN_SIZE,
+    },
+    scanHole: {
+        width: SCAN_SIZE,
+        height: SCAN_SIZE,
+        backgroundColor: 'transparent',
+        overflow: 'hidden',
+    },
+    cornerFrame: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    corner: {
+        position: 'absolute',
+        width: 32,
+        height: 32,
+        borderColor: '#4ade80',
+    },
+    topLeft: { top: 0, left: 0, borderTopWidth: 5, borderLeftWidth: 5, borderTopLeftRadius: 18 },
+    topRight: { top: 0, right: 0, borderTopWidth: 5, borderRightWidth: 5, borderTopRightRadius: 18 },
+    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 5, borderLeftWidth: 5, borderBottomLeftRadius: 18 },
+    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 5, borderRightWidth: 5, borderBottomRightRadius: 18 },
+    laser: {
+        height: 4,
+        width: '100%',
+        backgroundColor: '#4ade80',
+        shadowColor: '#4ade80',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 15,
+        zIndex: 10,
+    },
+    hudTechnicalLeft: {
+        position: 'absolute',
+        left: 20,
+        top: '40%',
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 40,
     },
-    backButton: {
-        padding: 10,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        borderRadius: 20,
+    hudTechnicalRight: {
+        position: 'absolute',
+        right: 20,
+        top: '40%',
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    backIcon: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: 'bold',
+    hudLine: {
+        width: 30,
+        height: 1,
+        backgroundColor: 'rgba(74, 222, 128, 0.5)',
     },
-    headerText: {
-        color: 'white',
+    hudTechText: {
+        color: 'rgba(74, 222, 128, 0.7)',
+        fontSize: 8,
+        fontWeight: '900',
+        marginHorizontal: 8,
+        letterSpacing: 2,
+    },
+    uiContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'space-between',
+        paddingVertical: 50,
+    },
+    topRegion: {
+        gap: 20,
+    },
+    appHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 25,
+    },
+    glassBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
+    glassBtnText: {
+        color: COLORS.white,
         fontSize: 18,
         fontWeight: 'bold',
-        marginLeft: 20,
     },
-    guideContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    scannerFrame: {
-        width: width * 0.7,
-        height: width * 0.7,
-        borderWidth: 2,
+    premiumSwitch: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(0,0,0,0.5)',
         borderRadius: 20,
-        position: 'relative',
+        padding: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
     },
-    cornerTopLeft: {
-        position: 'absolute',
-        top: -2,
-        left: -2,
-        width: 40,
-        height: 40,
-        borderTopWidth: 6,
-        borderLeftWidth: 6,
-        borderColor: COLORS.secondary,
-        borderTopLeftRadius: 20,
+    switchTab: {
+        paddingHorizontal: 22,
+        paddingVertical: 8,
+        borderRadius: 16,
     },
-    cornerTopRight: {
-        position: 'absolute',
-        top: -2,
-        right: -2,
-        width: 40,
-        height: 40,
-        borderTopWidth: 6,
-        borderRightWidth: 6,
-        borderColor: COLORS.secondary,
-        borderTopRightRadius: 20,
-    },
-    cornerBottomLeft: {
-        position: 'absolute',
-        bottom: -2,
-        left: -2,
-        width: 40,
-        height: 40,
-        borderBottomWidth: 6,
-        borderLeftWidth: 6,
-        borderColor: COLORS.secondary,
-        borderBottomLeftRadius: 20,
-    },
-    cornerBottomRight: {
-        position: 'absolute',
-        bottom: -2,
-        right: -2,
-        width: 40,
-        height: 40,
-        borderBottomWidth: 6,
-        borderRightWidth: 6,
-        borderColor: COLORS.secondary,
-        borderBottomRightRadius: 20,
-    },
-    footer: {
-        marginBottom: 40,
-        alignItems: 'center',
-    },
-    infoBox: {
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        padding: 15,
-        borderRadius: 15,
-        width: '100%',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    guideText: {
-        color: 'white',
-        fontSize: 14,
-        textAlign: 'center',
-    },
-    miniResult: {
-        marginTop: 10,
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.2)',
-        width: '100%',
-    },
-    miniResultText: {
-        color: COLORS.secondary,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        fontSize: 14,
-    },
-    loadingContainer: {
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    loadingText: {
-        color: COLORS.secondary,
-        marginTop: 10,
-        fontWeight: 'bold',
-    },
-    manualButton: {
+    activeSwitchTab: {
         backgroundColor: COLORS.white,
-        paddingVertical: 12,
-        paddingHorizontal: 30,
-        borderRadius: 25,
     },
-    manualButtonText: {
-        color: COLORS.primary,
-        fontWeight: 'bold',
-        fontSize: 14,
+    switchTabText: {
+        color: COLORS.white,
+        fontSize: 11,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    activeSwitchTabText: {
+        color: COLORS.primaryDark,
+    },
+    statusDisplay: {
+        alignItems: 'center',
+    },
+    statusPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        borderRadius: 25,
+        borderWidth: 1,
+        borderColor: 'rgba(74, 222, 128, 0.3)',
+        ...COLORS.shadow.md,
+    },
+    pulseDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 12,
+    },
+    statusPillText: {
+        color: COLORS.white,
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 1.5,
+    },
+    bottomRegion: {
+        alignItems: 'center',
+        paddingHorizontal: 25,
+    },
+    hintBox: {
+        marginBottom: 40,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        paddingHorizontal: 15,
+        paddingVertical: 8,
+        borderRadius: 12,
+    },
+    instructionText: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 1,
+        textAlign: 'center',
+    },
+    controlCenter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        width: '100%',
+    },
+    secondaryCircle: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    mainShutterOuter: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    masterShutter: {
+        width: 84,
+        height: 84,
+        borderRadius: 42,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        padding: 5,
+    },
+    shutterAutoMode: {
+        opacity: 0.8,
+    },
+    shutterInnerRing: {
+        flex: 1,
+        borderRadius: 37,
+        backgroundColor: COLORS.white,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    shutterInnerAutoRing: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    manualCore: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: COLORS.white,
+        borderWidth: 4,
+        borderColor: 'rgba(0,0,0,0.05)',
+    },
+    robotIcon: {
+        fontSize: 34,
+    },
+    shutterBusy: {
+        opacity: 0.5,
+    },
+    permissionBox: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 30,
+    },
+    permissionIcon: {
+        fontSize: 60,
+        marginBottom: 20,
     },
     text: {
-        color: 'white',
+        color: COLORS.white,
+        fontSize: 18,
         textAlign: 'center',
+        marginBottom: 30,
+        fontWeight: '900',
+    },
+    grantButton: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 45,
+        paddingVertical: 18,
+        borderRadius: 30,
+        ...COLORS.shadow.md,
+    },
+    grantButtonText: {
+        color: COLORS.white,
+        fontWeight: '900',
         fontSize: 16,
-        padding: 20,
-    },
-    button: {
-        backgroundColor: COLORS.secondary,
-        padding: 15,
-        borderRadius: 10,
-        marginHorizontal: 40,
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        textAlign: 'center',
-    },
+        letterSpacing: 1,
+    }
 });
 
 export default ScannerScreen;

@@ -23,12 +23,12 @@ const HistoryScreen = ({ navigation, route }) => {
 
     const handleDelete = async (item) => {
         Alert.alert(
-            t.delete,
-            t.confirmDelete,
+            language === 'ta' ? "ஸ்கேனை நீக்கவா?" : "Delete Scan?",
+            language === 'ta' ? "நிச்சயமாக இதை நீக்க விரும்புகிறீர்களா?" : "Are you sure you want to remove this from your history?",
             [
                 { text: t.cancel, style: "cancel" },
                 {
-                    text: t.delete,
+                    text: language === 'ta' ? "நீக்கு" : "Delete",
                     style: "destructive",
                     onPress: async () => {
                         await deleteScan(item.timestamp);
@@ -47,18 +47,24 @@ const HistoryScreen = ({ navigation, route }) => {
                 analysisResult: item.analysisResult,
                 language: language
             })}
+            activeOpacity={0.7}
         >
-            <Image source={{ uri: item.imageUri }} style={styles.thumbnail} />
+            <View style={styles.thumbnailContainer}>
+                <Image source={{ uri: item.imageUri }} style={styles.thumbnail} />
+                <View style={styles.statusDotOverlay}>
+                    <View style={[styles.miniDot, { backgroundColor: item.analysisResult.isHealthy ? COLORS.success : COLORS.error }]} />
+                </View>
+            </View>
             <View style={styles.cardContent}>
-                <Text style={styles.cropName}>{item.analysisResult.crop}</Text>
+                <Text style={styles.cropName}>{item.analysisResult.crop.toUpperCase()}</Text>
                 <Text style={styles.diseaseName}>{item.analysisResult.name[language]}</Text>
-                <Text style={styles.date}>{new Date(item.timestamp).toLocaleDateString()}</Text>
+                <Text style={styles.dateText}>{new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
             </View>
             <TouchableOpacity
-                style={styles.deleteButton}
+                style={styles.deleteIconButton}
                 onPress={() => handleDelete(item)}
             >
-                <Text style={styles.deleteText}>🗑️</Text>
+                <Text style={styles.trashIcon}>🗑️</Text>
             </TouchableOpacity>
         </TouchableOpacity>
     );
@@ -66,16 +72,36 @@ const HistoryScreen = ({ navigation, route }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Text style={styles.backButtonText}>←</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{t.history}</Text>
+                <View style={styles.headerTop}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Text style={styles.backBtnText}>←</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{t.history}</Text>
+                    <View style={{ width: 44 }} />
+                </View>
+
                 {history.length > 0 && (
-                    <TouchableOpacity onPress={async () => {
-                        await clearHistory();
-                        loadHistory();
-                    }}>
-                        <Text style={styles.clearText}>Clear</Text>
+                    <TouchableOpacity
+                        style={styles.clearBadge}
+                        onPress={() => {
+                            Alert.alert(
+                                t.clearHistory,
+                                t.confirmClearAll,
+                                [
+                                    { text: t.cancel, style: "cancel" },
+                                    {
+                                        text: t.clearHistory,
+                                        style: "destructive",
+                                        onPress: async () => {
+                                            await clearHistory();
+                                            loadHistory();
+                                        }
+                                    }
+                                ]
+                            );
+                        }}
+                    >
+                        <Text style={styles.clearBadgeText}>{t.clearHistory.toUpperCase()}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -83,11 +109,13 @@ const HistoryScreen = ({ navigation, route }) => {
             <FlatList
                 data={history}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.list}
+                keyExtractor={(item) => item.timestamp.toString()}
+                contentContainerStyle={styles.listContainer}
                 ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyText}>{t.noHistory}</Text>
+                    <View style={styles.emptyBox}>
+                        <Text style={styles.emptyIcon}>📂</Text>
+                        <Text style={styles.emptyTitle}>{t.noHistory}</Text>
+                        <Text style={styles.emptySub}>{language === 'ta' ? "நீங்கள் செய்த ஸ்கேன்கள் இங்கே தோன்றும்" : "Your scan history will appear here once you start scanning leaves."}</Text>
                     </View>
                 }
             />
@@ -101,87 +129,152 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background,
     },
     header: {
+        backgroundColor: COLORS.primary,
+        paddingTop: 50,
+        paddingBottom: 25,
+        paddingHorizontal: SIZES.padding,
+        borderBottomLeftRadius: 35,
+        borderBottomRightRadius: 35,
+        ...COLORS.shadow.lg,
+        alignItems: 'center',
+    },
+    headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: 50,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: COLORS.primary,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
+        width: '100%',
+        marginBottom: 15,
     },
-    backButton: {
-        padding: 5,
+    backBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    backButtonText: {
+    backBtnText: {
         fontSize: 24,
-        color: '#fff',
+        color: COLORS.white,
+        fontWeight: 'bold',
     },
     headerTitle: {
         fontSize: 20,
-        fontWeight: 'bold',
-        color: '#fff',
+        fontWeight: '900',
+        color: COLORS.white,
+        letterSpacing: 0.5,
     },
-    clearText: {
-        color: '#fff',
-        fontSize: 14,
+    clearBadge: {
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
-    list: {
-        padding: 20,
+    clearBadgeText: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    listContainer: {
+        padding: SIZES.padding,
     },
     card: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
-        borderRadius: 15,
+        backgroundColor: COLORS.surface,
+        borderRadius: 22,
         marginBottom: 15,
-        padding: 10,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        padding: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...COLORS.shadow.sm,
+    },
+    thumbnailContainer: {
+        position: 'relative',
     },
     thumbnail: {
-        width: 70,
-        height: 70,
-        borderRadius: 10,
+        width: 64,
+        height: 64,
+        borderRadius: 15,
+        backgroundColor: COLORS.background,
+    },
+    statusDotOverlay: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: COLORS.white,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        justifyContent: 'center',
+        alignItems: 'center',
+        ...COLORS.shadow.sm,
+    },
+    miniDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
     cardContent: {
         flex: 1,
         marginLeft: 15,
-        justifyContent: 'center',
     },
     cropName: {
-        fontSize: 12,
-        color: COLORS.gray,
-        fontWeight: 'bold',
+        fontSize: 10,
+        color: COLORS.textLight,
+        fontWeight: '900',
+        letterSpacing: 1,
+        marginBottom: 2,
     },
     diseaseName: {
-        fontSize: 16,
-        fontWeight: 'bold',
+        fontSize: 17,
+        fontWeight: '800',
         color: COLORS.text,
-        marginBottom: 5,
+        marginBottom: 4,
     },
-    date: {
+    dateText: {
         fontSize: 12,
-        color: COLORS.gray,
+        color: COLORS.textLight,
+        fontWeight: '600',
     },
-    deleteButton: {
+    deleteIconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: COLORS.background,
         justifyContent: 'center',
-        paddingHorizontal: 10,
-    },
-    deleteText: {
-        fontSize: 20,
-    },
-    emptyContainer: {
-        flex: 1,
-        paddingTop: 100,
         alignItems: 'center',
     },
-    emptyText: {
-        fontSize: 16,
-        color: COLORS.gray,
+    trashIcon: {
+        fontSize: 18,
+        opacity: 0.6,
+    },
+    emptyBox: {
+        flex: 1,
+        paddingTop: 80,
+        alignItems: 'center',
+        paddingHorizontal: 40,
+    },
+    emptyIcon: {
+        fontSize: 64,
+        marginBottom: 20,
+        opacity: 0.2,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: COLORS.text,
+        marginBottom: 8,
+    },
+    emptySub: {
+        fontSize: 14,
+        color: COLORS.textLight,
+        textAlign: 'center',
+        lineHeight: 20,
+        fontWeight: '500',
     }
 });
 

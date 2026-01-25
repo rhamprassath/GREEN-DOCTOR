@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Dimensions } from 'react-native';
-import { COLORS, SIZES } from '../constants/theme';
+import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { TRANSLATIONS } from '../constants/translations';
 
 const { width } = Dimensions.get('window');
@@ -8,6 +8,19 @@ const { width } = Dimensions.get('window');
 const AboutScreen = ({ route, navigation }) => {
     const language = route.params?.language || 'en';
     const t = TRANSLATIONS[language] || TRANSLATIONS['en'];
+
+    const InfoCard = ({ icon, title, content, children }) => (
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <View style={styles.cardIconCircle}>
+                    <Text style={styles.cardIcon}>{icon}</Text>
+                </View>
+                <Text style={styles.cardTitle}>{title}</Text>
+            </View>
+            {content ? <Text style={styles.cardBody}>{content}</Text> : null}
+            {children}
+        </View>
+    );
 
     return (
         <SafeAreaView style={styles.container}>
@@ -24,106 +37,85 @@ const AboutScreen = ({ route, navigation }) => {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* 1. Logos Section */}
-                <View style={styles.logoRow}>
-                    <View style={styles.sideLogoContainer}>
-                        <Image
-                            source={require('../assets/uba_logo.png')}
-                            style={styles.sideLogo}
-                            resizeMode="contain"
-                        />
+                {/* 1. Logos Section - Grouped Header */}
+                <View style={styles.brandHeader}>
+                    <View style={styles.logoGrid}>
+                        <View style={styles.brandBox}>
+                            <Image source={require('../assets/uba_logo.png')} style={styles.sideLogo} resizeMode="contain" />
+                        </View>
+                        <View style={[styles.brandBox, styles.mainBrandBox]}>
+                            <Image source={require('../assets/logo.png')} style={styles.mainLogo} resizeMode="contain" />
+                        </View>
+                        <View style={styles.brandBox}>
+                            <Image source={require('../assets/act_logo.png')} style={styles.sideLogo} resizeMode="contain" />
+                        </View>
                     </View>
-
-                    <View style={styles.mainLogoContainer}>
-                        <Image
-                            source={require('../assets/logo.png')}
-                            style={styles.mainLogo}
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    <View style={styles.sideLogoContainer}>
-                        <Image
-                            source={require('../assets/act_logo.png')}
-                            style={styles.sideLogo}
-                            resizeMode="contain"
-                        />
-                    </View>
+                    <Text style={styles.pageHeaderTitle}>{t.aboutTitle}</Text>
                 </View>
 
-                {/* 2. Title */}
-                <Text style={styles.pageHeaderTitle}>{t.aboutTitle}</Text>
+                {/* 2. Content Cards */}
+                <InfoCard
+                    icon="🌱"
+                    title={t.aboutApp}
+                    content={t.aboutContent}
+                />
 
-                {/* 3. About Text */}
-                <Text style={styles.bodyText}>
-                    {t.aboutContent}
-                </Text>
+                <InfoCard
+                    icon="👁️"
+                    title={t.visionTitle}
+                    content={t.visionContent}
+                />
 
-                {/* 4. Vision & Mission */}
-                <View style={styles.sectionContainer}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionIcon}>👁️</Text>
-                        <Text style={styles.sectionTitle}>{t.visionTitle}</Text>
-                    </View>
-                    <Text style={styles.bodyText}>
-                        {t.visionContent}
-                    </Text>
-                </View>
-
-                <View style={styles.sectionContainer}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionIcon}>🎯</Text>
-                        <Text style={styles.sectionTitle}>{t.missionTitle}</Text>
-                    </View>
+                <InfoCard icon="🎯" title={t.missionTitle}>
                     <View style={styles.bulletList}>
-                        <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bodyText}>{t.missionPoint1}</Text>
+                        {[t.missionPoint1, t.missionPoint2, t.missionPoint3].map((point, i) => (
+                            <View key={i} style={styles.bulletItem}>
+                                <View style={styles.bulletPoint} />
+                                <Text style={styles.bulletText}>{point}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </InfoCard>
+
+                {/* 3. Team Card */}
+                <View style={[styles.card, styles.teamCard]}>
+                    <View style={styles.cardHeader}>
+                        <View style={[styles.cardIconCircle, { backgroundColor: '#E3F2FD' }]}>
+                            <Text style={styles.cardIcon}>👥</Text>
                         </View>
-                        <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bodyText}>{t.missionPoint2}</Text>
+                        <Text style={styles.cardTitle}>{t.ourTeam}</Text>
+                    </View>
+
+                    <View style={styles.teamGrid}>
+                        <View style={styles.teamMember}>
+                            <Text style={styles.roleLabel}>{t.principal?.split(':')[0] || 'Principal'}</Text>
+                            <Text style={styles.memberName}>{t.principal?.split(':')[1] || ''}</Text>
                         </View>
-                        <View style={styles.bulletItem}>
-                            <Text style={styles.bullet}>•</Text>
-                            <Text style={styles.bodyText}>{t.missionPoint3}</Text>
+
+                        <View style={styles.teamMember}>
+                            <Text style={styles.roleLabel}>{t.principalInvestigator?.split(':')[0] || 'PI'}</Text>
+                            <Text style={styles.memberName}>{t.principalInvestigator?.split(':')[1] || ''}</Text>
+                        </View>
+
+                        <View style={styles.teamMember}>
+                            <Text style={styles.roleLabel}>{t.coPi?.split(':')[0] || 'Co-PI'}</Text>
+                            <Text style={styles.memberName}>{t.coPi?.split(':')[1] || ''}</Text>
+                        </View>
+
+                        <View style={styles.studentSection}>
+                            <Text style={styles.roleLabel}>{t.studentInnovators}</Text>
+                            <View style={styles.studentChips}>
+                                {t.studentsList?.map((student, i) => (
+                                    <View key={i} style={styles.chip}>
+                                        <Text style={styles.chipText}>{student}</Text>
+                                    </View>
+                                ))}
+                            </View>
                         </View>
                     </View>
                 </View>
 
-                {/* 5. Our Team Section */}
-                <View style={styles.teamContainer}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionIcon}>👥</Text>
-                        <Text style={styles.sectionTitle}>{t.ourTeam}</Text>
-                    </View>
-
-                    <View style={styles.teamMember}>
-                        <Text style={styles.roleLabel}>{t.principal.split(':')[0]}:</Text>
-                        <Text style={styles.memberName}>{t.principal.split(':')[1]}</Text>
-                    </View>
-
-                    <View style={styles.teamMember}>
-                        <Text style={styles.roleLabel}>{t.principalInvestigator.split(':')[0]}:</Text>
-                        <Text style={styles.memberName}>{t.principalInvestigator.split(':')[1]}</Text>
-                    </View>
-
-                    <View style={styles.teamMember}>
-                        <Text style={styles.roleLabel}>{t.coPi.split(':')[0]}:</Text>
-                        <Text style={styles.memberName}>{t.coPi.split(':')[1]}</Text>
-                    </View>
-
-                    <View style={styles.teamMember}>
-                        <Text style={styles.roleLabel}>{t.studentInnovators}</Text>
-                        <View style={styles.studentList}>
-                            {t.studentsList && t.studentsList.map((student, index) => (
-                                <Text key={index} style={styles.studentName}>• {student}</Text>
-                            ))}
-                        </View>
-                    </View>
-                </View>
-
-                <View style={{ height: 60 }} />
+                <View style={{ height: 40 }} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -132,143 +124,179 @@ const AboutScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.white, // Clean white background
+        backgroundColor: '#F8F9FA',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        backgroundColor: COLORS.white,
+        paddingHorizontal: 15,
+        paddingTop: 10,
+        height: 60,
+        backgroundColor: '#fff',
     },
     backButton: {
-        padding: 5,
+        padding: 10,
     },
     backButtonText: {
-        fontSize: 28,
-        color: '#333',
-        fontWeight: '300', // Lighter weight for modern feel
+        fontSize: 24,
+        color: COLORS.primary,
+        fontWeight: 'bold',
     },
     headerTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-        letterSpacing: 1,
-        textTransform: 'uppercase',
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.primary,
     },
     scrollContent: {
-        paddingHorizontal: 24,
-        paddingTop: 10,
+        padding: 20,
     },
-    logoRow: {
+    brandHeader: {
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    logoGrid: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 30,
-        marginTop: 10,
+        justifyContent: 'center',
+        gap: 15,
+        marginBottom: 15,
     },
-    sideLogoContainer: {
-        width: 70,
-        height: 70,
+    brandBox: {
+        width: 60,
+        height: 60,
+        backgroundColor: '#fff',
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        // Optional: Add shadow or elevation for logos if needed, currently kept flat
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
     },
-    sideLogo: {
-        width: '100%',
-        height: '100%',
-    },
-    mainLogoContainer: {
-        width: 100,
-        height: 100,
-        justifyContent: 'center',
-        alignItems: 'center',
+    mainBrandBox: {
+        width: 80,
+        height: 80,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.primary + '30',
     },
     mainLogo: {
-        width: '100%',
-        height: '100%',
+        width: '80%',
+        height: '80%',
+    },
+    sideLogo: {
+        width: '70%',
+        height: '70%',
     },
     pageHeaderTitle: {
-        fontSize: 24,
-        fontWeight: '800', // Heavy bold
-        color: '#1B5E20', // Dark Green
-        textAlign: 'center',
-        marginBottom: 20,
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        letterSpacing: 1,
     },
-    bodyText: {
-        fontSize: 15,
-        lineHeight: 24,
-        color: '#444', // Dark gray for better readability than pure black
-        textAlign: 'justify',
+    card: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
         marginBottom: 20,
-        fontWeight: '400',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
     },
-    sectionContainer: {
-        marginBottom: 20,
-    },
-    sectionHeader: {
+    cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 15,
     },
-    sectionIcon: {
+    cardIconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F1F8E9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    cardIcon: {
         fontSize: 20,
-        marginRight: 10,
-        color: '#2E7D32',
     },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#222',
-        letterSpacing: 0.5,
-        textTransform: 'uppercase',
+    cardTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: COLORS.primary,
+    },
+    cardBody: {
+        fontSize: 14,
+        lineHeight: 22,
+        color: '#444',
+        textAlign: 'justify',
     },
     bulletList: {
         marginTop: 5,
     },
     bulletItem: {
         flexDirection: 'row',
+        alignItems: 'center',
         marginBottom: 8,
-        alignItems: 'flex-start',
     },
-    bullet: {
-        fontSize: 18,
+    bulletPoint: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.primary,
         marginRight: 10,
-        color: '#2E7D32',
-        lineHeight: 24,
     },
-    teamContainer: {
-        marginTop: 10,
-        paddingTop: 20,
-        borderTopWidth: 1,
-        borderTopColor: '#eee',
+    bulletText: {
+        fontSize: 14,
+        color: '#444',
+    },
+    teamCard: {
+        backgroundColor: '#fff',
+    },
+    teamGrid: {
+        gap: 15,
     },
     teamMember: {
-        marginBottom: 15,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
     },
     roleLabel: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#1B5E20',
+        fontSize: 12,
+        color: COLORS.gray,
+        fontWeight: 'bold',
         marginBottom: 2,
     },
     memberName: {
         fontSize: 15,
-        fontWeight: '400',
-        color: '#333',
+        color: COLORS.text,
+        fontWeight: '600',
     },
-    studentList: {
+    studentSection: {
         marginTop: 5,
-        paddingLeft: 10,
     },
-    studentName: {
-        fontSize: 14,
-        color: '#555',
-        marginBottom: 2,
-        lineHeight: 20,
+    studentChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 10,
+    },
+    chip: {
+        backgroundColor: '#F5F5F5',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    chipText: {
+        fontSize: 13,
+        color: '#666',
+        fontWeight: '500',
     }
 });
 

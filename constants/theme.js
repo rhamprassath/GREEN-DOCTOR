@@ -1,37 +1,58 @@
 export const COLORS = {
-  primary: '#2E7D32', // Deep Green (Logo)
-  secondary: '#4CAF50', // Medium Green
-  background: '#F5F5F5', // Light Gray Background
-  surface: '#FFFFFF', // White Surface
-  textPrimary: '#1B5E20', // Dark Green Text
-  textSecondary: '#666666', // Gray Text
-  accent: '#FF5722', // Orange/Red for alerts
+  // Brand Palette (HSL Derived for harmony)
+  primary: '#2E7D32',    // Deep Forest Green
+  primaryLight: '#4CAF50', // Leaf Green
+  primaryDark: '#1B5E20',  // Dark Moss
+  secondary: '#8BC34A',  // Sprout Green
+
+  // Neutral Palette
+  background: '#F9FBF9', // Soft Mint-tinted White
+  surface: '#FFFFFF',
+  text: '#122613',       // Almost Black Green
+  textLight: '#5C6B5D',  // Muted Sage
+  border: '#E0EAE0',
+
+  // Status Palette
+  success: '#388E3C',
+  warning: '#F57C00',
   error: '#D32F2F',
+  info: '#1976D2',
+
   white: '#FFFFFF',
   black: '#000000',
-  cardShadow: {
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
+
+  // Premium Layered Shadows
+  shadow: {
+    sm: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 3,
+    md: {
+      shadowColor: "#1B5E20",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    lg: {
+      shadowColor: "#1B5E20",
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 8,
+    }
   }
 };
 
-export const FONTS = {
-  regular: 'System', 
-  bold: 'System', 
-  // In a real app we'd load custom fonts here
-};
-
 export const SIZES = {
-  padding: 16,
-  radius: 12,
-  h1: 24,
-  h2: 20,
-  h3: 16,
-  body: 14,
+  padding: 20,
+  radius: 20,       // Larger radius for modern look
+  radiusSm: 12,
+  h1: 28,
+  h2: 24,
+  h3: 18,
+  body: 16,
 };

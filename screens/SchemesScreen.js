@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, StatusBar, Modal } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Modal, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SIZES } from '../constants/theme';
 import { TRANSLATIONS } from '../constants/translations';
 
@@ -154,6 +154,12 @@ const SchemesScreen = ({ route, navigation }) => {
     const [selectedScheme, setSelectedScheme] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
 
+    const handleApply = (url) => {
+        if (url) {
+            Linking.openURL(url);
+        }
+    };
+
     const openSchemeDetail = (scheme) => {
         setSelectedScheme(scheme);
         setModalVisible(true);
@@ -165,93 +171,119 @@ const SchemesScreen = ({ route, navigation }) => {
             onPress={() => openSchemeDetail(scheme)}
             activeOpacity={0.7}
         >
-            <View style={styles.schemeIconContainer}>
-                <Text style={styles.schemeIcon}>{scheme.icon}</Text>
+            <View style={styles.schemeIconBox}>
+                <Text style={styles.schemeIconEmoji}>{scheme.icon}</Text>
             </View>
-            <Text style={styles.schemeName}>{scheme.name[language]}</Text>
+            <View style={styles.schemeInfo}>
+                <Text style={styles.schemeTitleText}>{scheme.name[language]}</Text>
+                <Text style={styles.schemeSubtitleText} numberOfLines={2}>
+                    {scheme.shortDesc[language]}
+                </Text>
+            </View>
+            <Text style={styles.schemeArrow}>›</Text>
         </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar backgroundColor={COLORS.white} barStyle="dark-content" />
+        <SafeAreaView style={styles.container} edges={['right', 'left', 'top']}>
+            <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.appName}>GREEN DOCTOR</Text>
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('Language')}
-                    style={styles.languageButton}
-                >
-                    <Text style={styles.languageIcon}>🌐</Text>
-                </TouchableOpacity>
+            {/* Immersive Header */}
+            <View style={styles.premiumHeader}>
+                <View style={styles.headerTopRow}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <Text style={styles.backButtonText}>←</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{t.govtSchemes}</Text>
+                    <View style={{ width: 44 }} />
+                </View>
+                <View style={styles.headerSearchPlaceholder}>
+                    <Text style={styles.searchLabel}>OFFICIAL GOVERNMENT INITIATIVES</Text>
+                </View>
             </View>
 
-            {/* Title */}
-            <View style={styles.titleContainer}>
-                <Text style={styles.pageTitle}>{t.govtSchemes.toUpperCase()}</Text>
-            </View>
-
-            {/* Schemes List */}
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {SCHEMES_DATA.map((scheme) => (
-                    <SchemeCard key={scheme.id} scheme={scheme} />
-                ))}
-                <View style={{ height: 30 }} />
+                <View style={styles.listSection}>
+                    <Text style={styles.sectionHeading}>AVAILABLE PROGRAMS</Text>
+                    {SCHEMES_DATA.map((scheme) => (
+                        <SchemeCard key={scheme.id} scheme={scheme} />
+                    ))}
+                </View>
+                <View style={{ height: 40 }} />
             </ScrollView>
 
-            {/* Scheme Detail Modal */}
+            {/* Scheme Detail Modal - Redesigned as a Premium Over Sheet */}
             <Modal
                 animationType="slide"
                 transparent={false}
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
+                <SafeAreaView style={styles.modalViewContainer}>
+                    <View style={styles.modalPremiumHeader}>
                         <TouchableOpacity
                             onPress={() => setModalVisible(false)}
-                            style={styles.closeButton}
+                            style={styles.modalBackBtn}
                         >
-                            <Text style={styles.closeButtonText}>✕</Text>
+                            <Text style={styles.modalBackBtnText}>✕</Text>
                         </TouchableOpacity>
-                        <Text style={styles.modalTitle}>
-                            {selectedScheme?.name[language]}
+                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                            {selectedScheme?.name?.[language] || ""}
                         </Text>
                     </View>
 
-                    <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                    <ScrollView style={styles.modalInnerScroll} showsVerticalScrollIndicator={false}>
                         {selectedScheme && (
-                            <View style={styles.modalContent}>
-                                <View style={styles.schemeIconLarge}>
-                                    <Text style={styles.schemeIconLargeText}>{selectedScheme.icon}</Text>
+                            <View style={styles.detailWrapper}>
+                                <View style={styles.heroFeature}>
+                                    <View style={styles.heroEmojiCircle}>
+                                        <Text style={styles.heroEmojiText}>{selectedScheme.icon}</Text>
+                                    </View>
+                                    <View style={styles.heroMeta}>
+                                        <Text style={styles.heroTag}>VERIFIED SCHEME</Text>
+                                        <Text style={styles.heroTitleMain}>{selectedScheme.name[language]}</Text>
+                                    </View>
                                 </View>
 
-                                <View style={styles.detailSection}>
-                                    <Text style={styles.detailSectionTitle}>📋 {t.aboutTitle || 'About'}</Text>
-                                    <Text style={styles.detailText}>{selectedScheme.description[language]}</Text>
+                                <View style={styles.contentBlock}>
+                                    <View style={styles.infoPill}>
+                                        <Text style={styles.pillLabel}>📋 PROGRAM OVERVIEW</Text>
+                                    </View>
+                                    <Text style={styles.bodyPara}>{selectedScheme.description[language]}</Text>
                                 </View>
 
-                                <View style={styles.detailSection}>
-                                    <Text style={styles.detailSectionTitle}>✅ Eligibility</Text>
-                                    <Text style={styles.detailText}>{selectedScheme.eligibility[language]}</Text>
+                                <View style={styles.gridBoard}>
+                                    <View style={styles.gridItem}>
+                                        <Text style={styles.gridLabel}>✅ ELIGIBILITY</Text>
+                                        <Text style={styles.gridValue}>{selectedScheme.eligibility[language]}</Text>
+                                    </View>
+                                    <View style={styles.gridItem}>
+                                        <Text style={styles.gridLabel}>🎁 KEY BENEFITS</Text>
+                                        <Text style={styles.gridValue}>{selectedScheme.benefits[language]}</Text>
+                                    </View>
                                 </View>
 
-                                <View style={styles.detailSection}>
-                                    <Text style={styles.detailSectionTitle}>🎁 Benefits</Text>
-                                    <Text style={styles.detailText}>{selectedScheme.benefits[language]}</Text>
+                                <View style={[styles.contentBlock, { backgroundColor: COLORS.primaryDark, borderRadius: 25, padding: 25 }]}>
+                                    <Text style={[styles.pillLabel, { color: COLORS.secondary }]}>📝 APPLICATION PROCESS</Text>
+                                    <Text style={[styles.bodyPara, { color: 'rgba(255,255,255,0.9)', marginTop: 10 }]}>
+                                        {selectedScheme.howToApply[language]}
+                                    </Text>
                                 </View>
 
-                                <View style={styles.detailSection}>
-                                    <Text style={styles.detailSectionTitle}>📝 How to Apply</Text>
-                                    <Text style={styles.detailText}>{selectedScheme.howToApply[language]}</Text>
-                                </View>
+                                {t.schemeLinks && t.schemeLinks[selectedScheme.id] && (
+                                    <TouchableOpacity
+                                        style={styles.ctaButton}
+                                        onPress={() => handleApply(t.schemeLinks[selectedScheme.id])}
+                                    >
+                                        <Text style={styles.ctaButtonText}>{t.applyOnline}</Text>
+                                    </TouchableOpacity>
+                                )}
 
-                                <View style={{ height: 40 }} />
+                                <View style={{ height: 60 }} />
                             </View>
                         )}
                     </ScrollView>
@@ -264,146 +296,250 @@ const SchemesScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#E8F5E9',
+        backgroundColor: COLORS.background,
     },
-    header: {
-        backgroundColor: COLORS.white,
-        paddingVertical: 15,
-        paddingHorizontal: 20,
+    premiumHeader: {
+        backgroundColor: COLORS.primary,
+        paddingTop: 10,
+        paddingBottom: 25,
+        paddingHorizontal: SIZES.padding,
+        borderBottomLeftRadius: 35,
+        borderBottomRightRadius: 35,
+        ...COLORS.shadow.lg,
+    },
+    headerTopRow: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
+        marginBottom: 20,
     },
-    appName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: COLORS.primary,
-    },
-    languageButton: {
-        padding: 5,
-    },
-    languageIcon: {
-        fontSize: 24,
-    },
-    titleContainer: {
-        backgroundColor: COLORS.white,
-        paddingVertical: 20,
-        paddingHorizontal: 20,
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
         alignItems: 'center',
     },
-    pageTitle: {
+    backButtonText: {
         fontSize: 24,
+        color: COLORS.white,
         fontWeight: 'bold',
-        color: '#000',
-        letterSpacing: 1,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '900',
+        color: COLORS.white,
+        letterSpacing: 0.5,
+    },
+    headerSearchPlaceholder: {
+        backgroundColor: 'rgba(0,0,0,0.15)',
+        paddingVertical: 8,
+        paddingHorizontal: 15,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    searchLabel: {
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 2,
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: 20,
-        paddingTop: 20,
+        padding: SIZES.padding,
+    },
+    listSection: {
+        paddingBottom: 20,
+    },
+    sectionHeading: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: COLORS.textLight,
+        letterSpacing: 1.5,
+        marginBottom: 15,
+        marginLeft: 5,
     },
     schemeCard: {
-        backgroundColor: COLORS.white,
-        borderRadius: 25,
-        padding: 16,
-        marginBottom: 15,
         flexDirection: 'row',
         alignItems: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        borderWidth: 1.5,
-        borderColor: '#4CAF50',
-    },
-    schemeIconContainer: {
-        width: 50,
-        height: 50,
+        backgroundColor: COLORS.surface,
         borderRadius: 25,
-        backgroundColor: '#E8F5E9',
+        padding: 18,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...COLORS.shadow.sm,
+    },
+    schemeIconBox: {
+        width: 56,
+        height: 56,
+        borderRadius: 18,
+        backgroundColor: COLORS.primary + '10',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 15,
+        marginRight: 18,
     },
-    schemeIcon: {
+    schemeIconEmoji: {
         fontSize: 28,
     },
-    schemeName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#000',
+    schemeInfo: {
         flex: 1,
     },
+    schemeTitleText: {
+        fontSize: 17,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginBottom: 4,
+    },
+    schemeSubtitleText: {
+        fontSize: 12,
+        color: COLORS.textLight,
+        fontWeight: '500',
+        lineHeight: 18,
+    },
+    schemeArrow: {
+        fontSize: 24,
+        color: COLORS.primary,
+        opacity: 0.3,
+        fontWeight: '300',
+        marginLeft: 10,
+    },
     // Modal Styles
-    modalContainer: {
+    modalViewContainer: {
         flex: 1,
         backgroundColor: COLORS.background,
     },
-    modalHeader: {
-        backgroundColor: COLORS.primary,
+    modalPremiumHeader: {
+        backgroundColor: COLORS.primaryDark,
         paddingVertical: 15,
-        paddingHorizontal: 20,
+        paddingHorizontal: SIZES.padding,
         flexDirection: 'row',
         alignItems: 'center',
     },
-    closeButton: {
-        marginRight: 15,
-        padding: 5,
-    },
-    closeButtonText: {
-        fontSize: 24,
-        color: COLORS.white,
-        fontWeight: 'bold',
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: COLORS.white,
-        flex: 1,
-    },
-    modalScroll: {
-        flex: 1,
-    },
-    modalContent: {
-        padding: 20,
-    },
-    schemeIconLarge: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: COLORS.primary + '20',
+    modalBackBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
-        alignSelf: 'center',
-        marginBottom: 20,
+        marginRight: 15,
     },
-    schemeIconLargeText: {
-        fontSize: 40,
-    },
-    detailSection: {
-        backgroundColor: COLORS.white,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 15,
-        borderLeftWidth: 4,
-        borderLeftColor: COLORS.primary,
-    },
-    detailSectionTitle: {
+    modalBackBtnText: {
         fontSize: 18,
+        color: COLORS.white,
         fontWeight: 'bold',
-        color: COLORS.primary,
-        marginBottom: 10,
     },
-    detailText: {
-        fontSize: 15,
+    modalHeaderTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.white,
+        flex: 1,
+    },
+    modalInnerScroll: {
+        flex: 1,
+    },
+    detailWrapper: {
+        padding: SIZES.padding,
+    },
+    heroFeature: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: 30,
+        padding: 20,
+        marginBottom: 25,
+        ...COLORS.shadow.md,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    heroEmojiCircle: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: COLORS.primary + '15',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 20,
+    },
+    heroEmojiText: {
+        fontSize: 36,
+    },
+    heroMeta: {
+        flex: 1,
+    },
+    heroTag: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: COLORS.success,
+        letterSpacing: 2,
+        marginBottom: 4,
+    },
+    heroTitleMain: {
+        fontSize: 22,
+        fontWeight: '900',
         color: COLORS.text,
-        lineHeight: 24,
     },
+    contentBlock: {
+        marginBottom: 25,
+    },
+    pillLabel: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: COLORS.primary,
+        letterSpacing: 1.5,
+        marginBottom: 12,
+    },
+    bodyPara: {
+        fontSize: 16,
+        color: COLORS.text,
+        lineHeight: 26,
+        fontWeight: '500',
+    },
+    gridBoard: {
+        flexDirection: 'row',
+        gap: 15,
+        marginBottom: 25,
+    },
+    gridItem: {
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderRadius: 22,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...COLORS.shadow.sm,
+    },
+    gridLabel: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: COLORS.textLight,
+        letterSpacing: 1,
+        marginBottom: 8,
+    },
+    gridValue: {
+        fontSize: 14,
+        color: COLORS.text,
+        lineHeight: 20,
+        fontWeight: '700',
+    },
+    ctaButton: {
+        backgroundColor: COLORS.primary,
+        paddingVertical: 20,
+        borderRadius: 25,
+        alignItems: 'center',
+        ...COLORS.shadow.lg,
+        marginTop: 10,
+    },
+    ctaButtonText: {
+        color: COLORS.white,
+        fontSize: 18,
+        fontWeight: '900',
+        letterSpacing: 2,
+    }
 });
 
 export default SchemesScreen;

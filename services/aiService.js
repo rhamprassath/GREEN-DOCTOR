@@ -25,14 +25,16 @@ export const analyzeImage = async (imageUri) => {
 
         // 1. Try Custom Backend First
         try {
-            console.log("Trying Backend...");
+            console.log("---------------------------------------------------");
+            console.log("DEBUG: Sending request to:", BACKEND_API_URL);
             const uploadResult = await FileSystem.uploadAsync(BACKEND_API_URL, imageUri, {
                 httpMethod: 'POST',
                 uploadType: FileSystem.FileSystemUploadType.MULTIPART,
                 fieldName: 'file',
             });
 
-            console.log("Render Backend Response:", uploadResult.status);
+            console.log("DEBUG: Response Status:", uploadResult.status);
+            console.log("DEBUG: Response Body:", uploadResult.body);
 
             if (uploadResult.status === 200) {
                 const data = JSON.parse(uploadResult.body);
@@ -59,9 +61,12 @@ export const analyzeImage = async (imageUri) => {
                     isFallback: false,
                     isMock: false
                 }
+            } else {
+                console.log("DEBUG: Server returned non-200 status");
             }
         } catch (e) {
-            console.log("Render Backend failed (likely waking up or offline):", e.message);
+            console.log("DEBUG: Upload Failed Error:", e);
+            console.log("DEBUG: Error Message:", e.message);
         }
 
         // 2. Fallback to Cloud APIs if Render fails

@@ -14,10 +14,12 @@ import gc
 import torch
 torch.set_num_threads(1)
 
-# Global variable for Lite Mode (Auto-detected)
+# Environment Detection
 IS_RENDER = os.environ.get("RENDER", "false").lower() == "true"
+IS_HF = "SPACE_ID" in os.environ
+ENV_MODE = "HuggingFace" if IS_HF else ("Render" if IS_RENDER else "Local")
 
-app = FastAPI(title="Green Doctor AI Vision")
+app = FastAPI(title=f"Green Doctor AI Vision [{ENV_MODE}]")
 
 app.add_middleware(
     CORSMiddleware,

@@ -10,24 +10,27 @@ import { getHistory } from '../utils/storage';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ route, navigation }) => {
-    // Robust fallback: Check if route.params exists, then check language, otherwise default to 'en'
     const language = route.params?.language || 'en';
     const [recentScans, setRecentScans] = useState([]);
     const [stats, setStats] = useState({ total: 0, healthy: 0, issues: 0 });
+    const [tipIndex, setTipIndex] = useState(0);
 
-    // Safety check for translations
     const translations = TRANSLATIONS[language] || TRANSLATIONS['en'];
     const t = translations;
 
     useFocusEffect(
         useCallback(() => {
             loadData();
+            // Select a random tip from the pool
+            if (t.dailyTips) {
+                setTipIndex(Math.floor(Math.random() * t.dailyTips.length));
+            }
         }, [])
     );
 
     const loadData = async () => {
         const history = await getHistory();
-        setRecentScans(history.slice(0, 5)); // Show top 5 recent
+        setRecentScans(history.slice(0, 5));
 
         const total = history.length;
         const healthy = history.filter(item => item.analysisResult.isHealthy).length;
@@ -36,11 +39,18 @@ const HomeScreen = ({ route, navigation }) => {
         setStats({ total, healthy, issues });
     };
 
-    const StatCard = ({ icon, number, label, color, textColor }) => (
-        <View style={[styles.statCard, { backgroundColor: color }]}>
-            <Text style={{ fontSize: 24, paddingBottom: 5, color: textColor || COLORS.white }}>{icon}</Text>
-            <Text style={[styles.statNumber, { color: textColor || COLORS.white }]}>{number}</Text>
-            <Text style={[styles.statLabel, { color: textColor || COLORS.white }]}>{label}</Text>
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return language === 'ta' ? "காலை வணக்கம்" : "Good Morning";
+        if (hour < 17) return language === 'ta' ? "மதிய வணக்கம்" : "Good Afternoon";
+        return language === 'ta' ? "மாலை வணக்கம்" : "Good Evening";
+    };
+
+    const StatCard = ({ icon, number, label, color }) => (
+        <View style={[styles.statCard, { borderBottomColor: color }]}>
+            <Text style={styles.statIcon}>{icon}</Text>
+            <Text style={styles.statNumber}>{number}</Text>
+            <Text style={styles.statLabel}>{label}</Text>
         </View>
     );
 
@@ -53,7 +63,7 @@ const HomeScreen = ({ route, navigation }) => {
 
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
+            allowsEditing: false,
             quality: 1,
         });
 
@@ -69,139 +79,158 @@ const HomeScreen = ({ route, navigation }) => {
     return (
         <SafeAreaView style={styles.container} edges={['right', 'left', 'top']}>
             <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <View style={styles.headerLeft}>
-                        <View style={styles.logoCircle}>
-                            <Image
-                                source={require('../assets/logo.png')}
-                                style={styles.headerLogo}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <View style={styles.headerTextContainer}>
-                            <Text style={styles.headerTitle}>GREEN DOCTOR</Text>
-                            <Text style={styles.headerSubtitle}>{t.subtitle}</Text>
-                        </View>
+            {/* Immersive Header */}
+            <View style={styles.premiumHeader}>
+                <View style={styles.headerTopRow}>
+                    <View style={styles.headerTitleContainer}>
+                        <Text style={styles.greetingText}>{getGreeting()},</Text>
+                        <Text style={styles.brandTitle}>GREEN DOCTOR</Text>
                     </View>
                     <View style={styles.headerActions}>
                         <TouchableOpacity
                             style={styles.headerActionButton}
                             onPress={() => navigation.navigate('Language')}
-                            title={t.changeLanguage}
                         >
-                            <Text style={styles.headerActionIcon}>🌐</Text>
+                            <Text style={[styles.headerActionIcon, { fontSize: 13, fontWeight: '900', color: COLORS.white }]}>A/அ</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={styles.headerActionButton}
                             onPress={() => navigation.navigate('About', { language })}
-                            title={t.aboutApp}
                         >
                             <Text style={styles.headerActionIcon}>ℹ️</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Action Buttons */}
-                <View style={styles.actionContainer}>
-                    <TouchableOpacity style={styles.actionCard} onPress={takePhoto}>
-                        <View style={styles.actionIconCircle}>
-                            <Text style={styles.actionIcon}>📷</Text>
+                {/* Main Hero Card */}
+                <View style={styles.heroCard}>
+                    <View style={styles.logoCircleLg}>
+                        <Image
+                            source={require('../assets/logo.png')}
+                            style={styles.heroLogo}
+                            resizeMode="contain"
+                        />
+                    </View>
+                    <View style={styles.heroImpact}>
+                        <Text style={styles.heroTagline}>{t.subtitle}</Text>
+                        <View style={styles.activeLabelContainer}>
+                            <View style={styles.pulseIndicator} />
+                            <Text style={styles.pulseText}>AI SYSTEM ACTIVE</Text>
                         </View>
-                        <Text style={styles.actionTitle}>{t.scanPlant}</Text>
-                        <Text style={styles.actionSubtitle}>{t.detectDiseases}</Text>
+                    </View>
+                </View>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {/* Core Scanning Actions */}
+                <View style={styles.primaryActionRow}>
+                    <TouchableOpacity style={styles.primaryActionCard} onPress={takePhoto}>
+                        <View style={styles.actionIconContainer}>
+                            <Text style={styles.actionEmoji}>📷</Text>
+                        </View>
+                        <Text style={styles.actionTitleText}>{t.scanPlant}</Text>
+                        <Text style={styles.actionDescText}>{t.detectDiseases}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.actionCard} onPress={pickImage}>
-                        <View style={[styles.actionIconCircle, { backgroundColor: '#388e3c' }]}>
-                            <Text style={styles.actionIcon}>🖼️</Text>
+                    <TouchableOpacity style={[styles.primaryActionCard, { backgroundColor: COLORS.secondary + '10' }]} onPress={pickImage}>
+                        <View style={[styles.actionIconContainer, { backgroundColor: COLORS.secondary }]}>
+                            <Text style={styles.actionEmoji}>🖼️</Text>
                         </View>
-                        <Text style={styles.actionTitle}>{t.pickFromGallery}</Text>
-                        <Text style={styles.actionSubtitle}>{t.detectDiseases}</Text>
+                        <Text style={styles.actionTitleText}>{t.pickFromGallery}</Text>
+                        <Text style={styles.actionDescText}>{t.detectDiseases}</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* History Button (Moved below or as a full width card) */}
-                <TouchableOpacity
-                    style={styles.historyFullCard}
-                    onPress={() => navigation.navigate('History', { language })}
-                >
-                    <View style={styles.historyIconSmall}>
-                        <Text style={{ fontSize: 18 }}>↺</Text>
+                {/* Daily Expert Tips integrated from Translations */}
+                {t.dailyTips && (
+                    <View style={styles.proTipCard}>
+                        <View style={styles.tipHeaderBox}>
+                            <Text style={styles.tipLabel}>💡 {language === 'ta' ? "நிபுணரின் குறிப்பு" : "EXPERT TIP"}</Text>
+                        </View>
+                        <Text style={styles.tipMainText}>{t.dailyTips[tipIndex]}</Text>
                     </View>
-                    <Text style={styles.historyText}>{t.history}</Text>
-                    <Text style={styles.historySubText}>{t.pastDiagnoses}</Text>
-                </TouchableOpacity>
-
-                {/* Government Schemes Button */}
-                <TouchableOpacity
-                    style={styles.historyFullCard}
-                    onPress={() => navigation.navigate('Schemes', { language })}
-                >
-                    <View style={[styles.historyIconSmall, { backgroundColor: '#fff3e0' }]}>
-                        <Text style={{ fontSize: 18 }}>📋</Text>
-                    </View>
-                    <Text style={styles.historyText}>{t.govtSchemes}</Text>
-                    <Text style={styles.historySubText}>{t.viewSchemes}</Text>
-                </TouchableOpacity>
-
-                {/* Stats */}
-                <Text style={styles.sectionTitle}>{t.yourStats}</Text>
-                <View style={styles.statsContainer}>
-                    <StatCard icon="📈" number={stats.total} label={t.totalScans} color="#00897b" />
-                    <StatCard icon="🌿" number={stats.healthy} label={t.healthyPlants} color="#00c853" />
-                    <StatCard icon="!" number={stats.issues} label={t.issuesDetected} color="#ff6f00" />
-                </View>
-
-                {/* Today's Tip */}
-                <Text style={styles.sectionTitle}>{t.todaysTip}</Text>
-                <View style={styles.tipCard}>
-                    <Text style={styles.tipIcon}>📖</Text>
-                    <Text style={styles.tipText}>{t.tipContent}</Text>
-                </View>
-
-                {/* Recent Scans */}
-                <Text style={styles.sectionTitle}>{t.recentScans}</Text>
-
-                {recentScans.length === 0 ? (
-                    <Text style={{ color: COLORS.gray, fontStyle: 'italic', marginTop: 10 }}>{t.noHistory}</Text>
-                ) : (
-                    recentScans.map((item, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            style={styles.recentItem}
-                            onPress={() => navigation.navigate('Result', {
-                                imageUri: item.imageUri,
-                                analysisResult: item.analysisResult,
-                                language: language
-                            })}
-                        >
-                            <Image source={{ uri: item.imageUri }} style={styles.recentImagePlaceholder} />
-                            <View style={styles.recentInfo}>
-                                <Text style={styles.recentPlant}>{item.analysisResult.crop}</Text>
-                                <Text style={[
-                                    styles.recentIssue,
-                                    { color: item.analysisResult.isHealthy ? COLORS.secondary : COLORS.warning }
-                                ]}>
-                                    {item.analysisResult.name[language]}
-                                </Text>
-                                <Text style={styles.recentTime}>
-                                    {new Date(item.timestamp).toLocaleDateString()}
-                                </Text>
-                            </View>
-                            <Text style={[
-                                styles.alertIcon,
-                                { color: item.analysisResult.isHealthy ? COLORS.secondary : COLORS.warning }
-                            ]}>
-                                {item.analysisResult.isHealthy ? "🌿" : "!"}
-                            </Text>
-                        </TouchableOpacity>
-                    ))
                 )}
 
-                <View style={{ height: 100 }} />
+                {/* Secondary Hub Actions */}
+                <View style={styles.listActionArea}>
+                    <TouchableOpacity
+                        style={styles.fullWidthItem}
+                        onPress={() => navigation.navigate('History', { language })}
+                    >
+                        <View style={[styles.itemIconBox, { backgroundColor: '#E3F2FD' }]}>
+                            <Text style={styles.itemIcon}>↺</Text>
+                        </View>
+                        <View style={styles.itemInfo}>
+                            <Text style={styles.itemTitle}>{t.history}</Text>
+                            <Text style={styles.itemSubtitle}>{t.pastDiagnoses}</Text>
+                        </View>
+                        <Text style={styles.itemChevron}>›</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.fullWidthItem}
+                        onPress={() => navigation.navigate('Schemes', { language })}
+                    >
+                        <View style={[styles.itemIconBox, { backgroundColor: '#FFF3E0' }]}>
+                            <Text style={styles.itemIcon}>📋</Text>
+                        </View>
+                        <View style={styles.itemInfo}>
+                            <Text style={styles.itemTitle}>{t.govtSchemes}</Text>
+                            <Text style={styles.itemSubtitle}>{t.viewSchemes}</Text>
+                        </View>
+                        <Text style={[styles.itemChevron, { color: '#FFB74D' }]}>›</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.statsBlock}>
+                    <Text style={styles.sectionHeading}>{t.yourStats}</Text>
+                    <View style={styles.statsRow}>
+                        <StatCard icon="📈" number={stats.total} label={t.totalScans} color={COLORS.info} />
+                        <StatCard icon="🌿" number={stats.healthy} label={t.healthyPlants} color={COLORS.success} />
+                        <StatCard icon="⚠" number={stats.issues} label={t.issuesDetected} color={COLORS.warning} />
+                    </View>
+                </View>
+
+                <View style={styles.recentBlock}>
+                    <Text style={styles.sectionHeading}>{t.recentScans}</Text>
+                    {recentScans.length === 0 ? (
+                        <View style={styles.noRecentBox}>
+                            <Text style={styles.noRecentText}>{t.noHistory}</Text>
+                        </View>
+                    ) : (
+                        recentScans.map((item, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={styles.recentPreviewCard}
+                                onPress={() => navigation.navigate('Result', {
+                                    imageUri: item.imageUri,
+                                    analysisResult: item.analysisResult,
+                                    language: language
+                                })}
+                            >
+                                <Image source={{ uri: item.imageUri }} style={styles.previewImage} />
+                                <View style={styles.previewBio}>
+                                    <Text style={styles.previewCrop}>{item.analysisResult.crop}</Text>
+                                    <Text style={[
+                                        styles.previewDisease,
+                                        { color: item.analysisResult.isHealthy ? COLORS.success : COLORS.error }
+                                    ]}>
+                                        {item.analysisResult.name[language]}
+                                    </Text>
+                                </View>
+                                <View style={styles.previewAction}>
+                                    <Text style={styles.previewTime}>
+                                        {new Date(item.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    </Text>
+                                    <Text style={styles.previewArrow}>→</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    )}
+                </View>
+
+                <View style={{ height: 40 }} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -212,235 +241,319 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
     },
-    scrollContent: {
-        padding: SIZES.padding,
-        paddingBottom: 20,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 20,
+    premiumHeader: {
         backgroundColor: COLORS.primary,
-        // Removed negative margins for SafeAreaView
         paddingTop: 10,
-        paddingBottom: 20,
+        paddingBottom: 30,
         paddingHorizontal: SIZES.padding,
-        borderRadius: 20, // Rounded corners all around for card-like feel inside container
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        borderBottomLeftRadius: 35,
+        borderBottomRightRadius: 35,
+        ...COLORS.shadow.lg,
     },
-    headerLeft: {
+    headerTopRow: {
         flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
+        marginBottom: 25,
     },
-    logoCircle: {
-        width: 55,
-        height: 55,
-        backgroundColor: COLORS.white,
-        borderRadius: 27.5,
-        overflow: 'hidden',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.3)',
+    headerTitleContainer: {
+        flex: 1,
     },
-    headerLogo: {
-        width: '100%',
-        height: '100%',
+    greetingText: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 14,
+        fontWeight: '600',
+        letterSpacing: 0.5,
     },
-    headerTextContainer: {
-        marginLeft: 12,
-        justifyContent: 'center',
+    brandTitle: {
+        color: COLORS.white,
+        fontSize: 22,
+        fontWeight: '900',
+        letterSpacing: 1,
     },
     headerActions: {
         flexDirection: 'row',
+        gap: 10,
     },
     headerActionButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
     headerActionIcon: {
         fontSize: 20,
     },
-    historyFullCard: {
+    heroCard: {
         flexDirection: 'row',
-        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.1)',
         padding: 15,
-        borderRadius: SIZES.radius,
-        alignItems: 'center',
-        marginBottom: 20,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-    },
-    historyIconSmall: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#e0f2f1',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    historyText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: COLORS.text,
-        flex: 1,
-    },
-    historySubText: {
-        fontSize: 12,
-        color: COLORS.gray,
-        marginRight: 10,
-    },
-    headerTitle: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    headerSubtitle: {
-        color: '#e8f5e9',
-        fontSize: 12,
-    },
-    actionContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 20,
-        marginTop: 10,
-    },
-    actionCard: {
-        backgroundColor: COLORS.white,
-        width: '48%',
-        padding: 20,
-        borderRadius: SIZES.radius,
-        alignItems: 'center',
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    actionIconCircle: {
-        width: 50,
-        height: 50,
         borderRadius: 25,
-        backgroundColor: '#004d40',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
-    actionIcon: {
-        fontSize: 24,
-        color: 'white',
-    },
-    actionTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: COLORS.text,
-        marginBottom: 5,
-    },
-    actionSubtitle: {
-        fontSize: 11,
-        color: COLORS.gray,
-        textAlign: 'center',
-    },
-    sectionTitle: {
-        fontSize: 18,
-        color: '#00695c',
-        marginBottom: 10,
-        fontWeight: 'bold',
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 25,
-    },
-    statCard: {
-        width: '31%',
-        paddingVertical: 15,
-        paddingHorizontal: 5,
-        borderRadius: SIZES.radius,
-        alignItems: 'center',
-        elevation: 2,
-    },
-    statNumber: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 5,
-    },
-    statLabel: {
-        fontSize: 11,
-        textAlign: 'center',
-    },
-    tipCard: {
-        flexDirection: 'row',
-        backgroundColor: '#e0f2f1',
-        padding: 15,
-        borderRadius: SIZES.radius,
-        marginBottom: 25,
-        alignItems: 'center',
-        borderLeftWidth: 4,
-        borderLeftColor: '#00897b',
-    },
-    tipIcon: {
-        fontSize: 24,
-        marginRight: 15,
-        color: '#004d40',
-    },
-    tipText: {
-        flex: 1,
-        color: '#004d40',
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    recentItem: {
-        flexDirection: 'row',
+    logoCircleLg: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         backgroundColor: COLORS.white,
-        padding: 10,
-        borderRadius: SIZES.radius,
-        marginBottom: 10,
+        justifyContent: 'center',
         alignItems: 'center',
-        elevation: 2,
+        ...COLORS.shadow.md,
     },
-    recentImagePlaceholder: {
-        width: 50,
-        height: 50,
-        borderRadius: 10,
-        backgroundColor: '#eee',
-        marginRight: 15,
+    heroLogo: {
+        width: '80%',
+        height: '80%',
     },
-    recentInfo: {
+    heroImpact: {
+        marginLeft: 15,
         flex: 1,
     },
-    recentPlant: {
-        fontSize: 14,
-        color: COLORS.gray,
-        fontWeight: 'bold',
+    heroTagline: {
+        color: COLORS.white,
+        fontSize: 15,
+        fontWeight: '700',
+        marginBottom: 6,
     },
-    recentIssue: {
+    activeLabelContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
+    pulseIndicator: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#4ade80',
+        marginRight: 6,
+    },
+    pulseText: {
+        color: '#4ade80',
+        fontSize: 9,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    scrollContent: {
+        padding: SIZES.padding,
+    },
+    primaryActionRow: {
+        flexDirection: 'row',
+        gap: 15,
+        marginTop: 20,
+        marginBottom: 25,
+    },
+    primaryActionCard: {
+        flex: 1,
+        backgroundColor: COLORS.primary + '10',
+        borderRadius: 25,
+        padding: 20,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    actionIconContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: COLORS.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        ...COLORS.shadow.md,
+    },
+    actionEmoji: {
+        fontSize: 28,
+    },
+    actionTitleText: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: COLORS.text,
+        textAlign: 'center',
+    },
+    actionDescText: {
+        fontSize: 11,
+        color: COLORS.textLight,
+        textAlign: 'center',
+        marginTop: 4,
+        fontWeight: '600',
+    },
+    proTipCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 25,
+        padding: 20,
+        marginBottom: 25,
+        borderLeftWidth: 6,
+        borderLeftColor: COLORS.secondary,
+        ...COLORS.shadow.md,
+    },
+    tipHeaderBox: {
+        marginBottom: 10,
+    },
+    tipLabel: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: COLORS.secondary,
+        letterSpacing: 1,
+    },
+    tipMainText: {
         fontSize: 15,
         color: COLORS.text,
-        fontWeight: '600',
-        marginVertical: 2,
+        lineHeight: 22,
+        fontWeight: '500',
     },
-    recentTime: {
+    listActionArea: {
+        gap: 12,
+        marginBottom: 30,
+    },
+    fullWidthItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        padding: 16,
+        borderRadius: 22,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...COLORS.shadow.sm,
+    },
+    itemIconBox: {
+        width: 50,
+        height: 50,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
+    },
+    itemIcon: {
+        fontSize: 24,
+    },
+    itemInfo: {
+        flex: 1,
+    },
+    itemTitle: {
+        fontSize: 17,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginBottom: 2,
+    },
+    itemSubtitle: {
         fontSize: 12,
-        color: '#999',
+        color: COLORS.textLight,
+        fontWeight: '500',
     },
-    alertIcon: {
-        fontSize: 20,
-        paddingRight: 10,
+    itemChevron: {
+        fontSize: 28,
+        color: COLORS.primary,
+        opacity: 0.3,
+        fontWeight: '300',
+    },
+    sectionHeading: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: COLORS.primaryDark,
+        marginBottom: 15,
+        letterSpacing: 0.5,
+    },
+    statsBlock: {
+        marginBottom: 30,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderRadius: 20,
+        padding: 15,
+        alignItems: 'center',
+        borderBottomWidth: 4,
+        ...COLORS.shadow.sm,
+    },
+    statIcon: {
+        fontSize: 24,
+        marginBottom: 8,
+    },
+    statNumber: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: COLORS.text,
+    },
+    statLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: COLORS.textLight,
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    recentBlock: {
+        marginBottom: 20,
+    },
+    recentPreviewCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        padding: 12,
+        borderRadius: 20,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    previewImage: {
+        width: 54,
+        height: 54,
+        borderRadius: 12,
+        backgroundColor: COLORS.background,
+    },
+    previewBio: {
+        flex: 1,
+        marginLeft: 15,
+    },
+    previewCrop: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: COLORS.textLight,
+        textTransform: 'uppercase',
+    },
+    previewDisease: {
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    previewAction: {
+        alignItems: 'flex-end',
+    },
+    previewTime: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.textLight,
+    },
+    previewArrow: {
+        fontSize: 18,
+        color: COLORS.primary,
+        fontWeight: '900',
+        marginTop: 2,
+    },
+    noRecentBox: {
+        padding: 40,
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: 20,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    noRecentText: {
+        color: COLORS.textLight,
+        fontStyle: 'italic',
+        fontSize: 14,
     }
 });
 
