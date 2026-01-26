@@ -56,3 +56,10 @@ export const SIZES = {
   h3: 18,
   body: 16,
 };
+
+export const FONTS = {
+  h1: { fontSize: SIZES.h1, fontWeight: 'bold' },
+  h2: { fontSize: SIZES.h2, fontWeight: 'bold' },
+  h3: { fontSize: SIZES.h3, fontWeight: 'bold' },
+  body: { fontSize: SIZES.body },
+};

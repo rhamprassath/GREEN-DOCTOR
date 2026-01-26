@@ -7,12 +7,17 @@ os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import gc
 import torch
+from .database import log_scan, init_db
+
 torch.set_num_threads(1)
+
+# Ensure DB is initialized on startup
+init_db()
 
 # Environment Detection
 IS_RENDER = os.environ.get("RENDER", "false").lower() == "true"
@@ -36,26 +41,34 @@ GENERAL_EXPERT = None
 RICE_EXPERT = None
 # Expert 3: Plant Disease Specialist (38 Categories)
 PLANT_SPECIALIST = None
+# Expert 4: Pest & Insect Detector
+PEST_EXPERT = None
+
+from .model_manifest import get_seasonal_experts
 
 def get_experts():
-    from transformers import pipeline # Lazy import to save memory during startup
-    global GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST
-    if GENERAL_EXPERT is None:
-        print("Loading AI Experts (Expert Ensemble Initializing)...")
+    from transformers import pipeline
+    global GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST, PEST_EXPERT
+    
+    if all(x is None for x in [GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST, PEST_EXPERT]):
+        manifest = get_seasonal_experts()
+        print(f"Loading Seasonal AI Pipeline for Month {datetime.now().month}...")
         
-        # Expert 1: General Feature Extractor
-        GENERAL_EXPERT = pipeline("image-classification", model="microsoft/swin-tiny-patch4-window7-224")
+        for entry in manifest:
+            try:
+                pipe = pipeline("image-classification", model=entry['model'])
+                if entry['id'] == 'general': GENERAL_EXPERT = pipe
+                elif entry['id'] == 'specialist': PLANT_SPECIALIST = pipe
+                elif entry['id'] == 'pest': PEST_EXPERT = pipe
+                elif entry['id'] == 'seasonal': RICE_EXPERT = pipe
+                print(f"Expert [{entry.get('name', entry['id'])}] Loaded.")
+            except Exception as e:
+                print(f"Expert {entry['id']} Failed: {e}")
+
+        torch.set_grad_enabled(False)
+        gc.collect()
         
-        # Expert 2: Crop ViT (Rice, Wheat, Corn specialists)
-        RICE_EXPERT = pipeline("image-classification", model="wambugu71/crop_leaf_diseases_vit")
-        
-        # Expert 3: Plant Village Specialist (38 disease categories)
-        PLANT_SPECIALIST = pipeline("image-classification", model="linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification")
-        
-        torch.set_grad_enabled(False) # Disable gradient tracking to save RAM
-        gc.collect() # Force cleanup after loading
-        
-    return GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST
+    return GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST, PEST_EXPERT
 
 def focalize_leaf(image_bytes):
     import numpy as np
@@ -181,11 +194,16 @@ def debug_status():
         "cpu_count": os.cpu_count()
     }
 
+import hashlib
+
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    print(f"Leaf Vision Processing: {file.filename}")
+    file: UploadFile = File(...),
+    latitude: float = Form(None),
+    longitude: float = Form(None)
+):
+    print(f"Leaf Vision Processing: {file.filename} (Lat: {latitude}, Lng: {longitude})")
     try:
-        gen_expert, rice_expert, plant_specialist = get_experts()
+        gen_expert, rice_expert, plant_specialist, pest_expert = get_experts()
         contents = await file.read()
         
         # 0. LEAF FOCALIZER: Pre-process and VALIDATE if it's a leaf
@@ -193,6 +211,8 @@ async def predict(file: UploadFile = File(...)):
         
         if image is None:
             print(f"REJECTED: Low Leaf Density ({density:.2f}%)")
+            # LOG REJECTION
+            log_scan("REJECTED_LOW_DENSITY", 0.0, latitude, longitude, status="rejected")
             return {
                 "class": "UNKNOWN",
                 "confidence": 0.0,
@@ -204,29 +224,39 @@ async def predict(file: UploadFile = File(...)):
         results_gen = GENERAL_EXPERT(image) if GENERAL_EXPERT else []
         results_rice = RICE_EXPERT(image) if RICE_EXPERT else []
         results_specialist = PLANT_SPECIALIST(image) if PLANT_SPECIALIST else []
+        results_pest = PEST_EXPERT(image) if PEST_EXPERT else []
         
         # 2. ENSEMBLE LOGIC: Pick the winner based on confidence
         best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none", "label": "None"}
         
-        # Pass 1: Plant Village Specialist (Most accurate for 38 categories)
-        if results_specialist:
+        # PASS 0: Pest Detection (Priority - if it's a bug, it's a bug)
+        if results_pest and results_pest[0]['score'] > 0.65:
+            pest_label = results_pest[0]['label']
+            best_prediction = {
+                "class": f"Pest: {pest_label}", 
+                "score": results_pest[0]['score'], 
+                "expert": "Entomology Expert", 
+                "label": pest_label
+            }
+
+        # Pass 1: Plant Village Specialist
+        if not best_prediction['expert'] == "Entomology Expert" and results_specialist:
             ai_label = results_specialist[0]['label']
             ai_score = results_specialist[0]['score']
             mapped = PLANT_VILLAGE_MAP.get(ai_label)
-            if mapped and ai_score > 0.45: # Raised from 0.40
+            if mapped and ai_score > 0.45:
                 best_prediction = {"class": mapped, "score": ai_score, "expert": "Specialist", "label": ai_label}
 
-        # Pass 2: Rice/Wheat Specialist (Priority for Cereals)
-        if results_rice:
+        # Pass 2: Rice/Wheat Specialist
+        if not best_prediction['expert'] == "Entomology Expert" and results_rice:
             ai_label = results_rice[0]['label']
             ai_score = results_rice[0]['score']
             RICE_LEGACY_MAP = {
                 'Rice___Brown_Spot': 'Paddy - Brown Spot', 'Rice___Healthy': 'Paddy - Healthy', 'Rice___Leaf_Blast': 'Paddy - Blast',
                 'Corn___Common_Rust': 'Corn - Common Rust', 'Corn___Gray_Leaf_Spot': 'Corn - Gray Leaf Spot', 'Corn___Healthy': 'Corn - Healthy',
-                'Potato___Early_Blight': 'Potato - Early Blight', 'Potato___Healthy': 'Potato - Healthy', 'Potato___Late_Blight': 'Potato - Late Blight'
+                'Potato___Early_blight': 'Potato - Early Blight', 'Potato___Healthy': 'Potato - Healthy', 'Potato___Late_Blight': 'Potato - Late Blight'
             }
             mapped = RICE_LEGACY_MAP.get(ai_label)
-            # Prioritize specialists if they have high confidence
             if mapped and (ai_score > 0.60 or (mapped.startswith("Paddy") and ai_score > 0.45)):
                 if ai_score > best_prediction['score']:
                     best_prediction = {"class": mapped, "score": ai_score, "expert": "Cereal Expert", "label": ai_label}
@@ -236,14 +266,19 @@ async def predict(file: UploadFile = File(...)):
             ai_label = results_gen[0]['label']
             ai_score = results_gen[0]['score']
             mapped = GENERAL_MAP.get(ai_label)
-            if mapped and ai_score > 0.60: # High threshold for general mapping
+            if mapped and ai_score > 0.60:
                 if ai_score > best_prediction['score']:
                     best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
-            elif ai_score > 0.85: # Extremely high threshold for raw labels
+            elif ai_score > 0.85:
                 best_prediction = {"class": f"Detected: {ai_label}", "score": ai_score, "expert": "General", "label": ai_label}
         
-        # PLANTIX LOGIC: Final check (Stricter threshold)
-        CONFIDENCE_THRESHOLD = 0.45 # Raised from 0.35
+        # FINAL CHECK: If it's a pest but confidence is low, keep searching but log it
+        if results_pest and results_pest[0]['score'] > 0.35 and best_prediction['score'] < 0.50:
+             # If AI is unsure about disease but sees a bug, mention the potential pest
+             best_prediction['ai_details_extra'] = f"Potentially: {results_pest[0]['label']}"
+
+        # PLANTIX LOGIC: Final check
+        CONFIDENCE_THRESHOLD = 0.45
         
         if best_prediction['score'] < CONFIDENCE_THRESHOLD:
             final_class = "UNKNOWN"
@@ -252,6 +287,9 @@ async def predict(file: UploadFile = File(...)):
             final_class = best_prediction['class']
             print(f"WINNER [{best_prediction['expert']}]: {best_prediction.get('label', 'None')} -> {final_class} ({best_prediction['score']*100:.1f}%)")
         
+        # LOG TO TELEMETRY DATABASE
+        log_scan(final_class, float(best_prediction['score']), latitude, longitude)
+
         return {
             "class": final_class,
             "confidence": float(best_prediction['score']),

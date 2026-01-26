@@ -8,6 +8,7 @@ import HistoryScreen from './screens/HistoryScreen';
 import ScannerScreen from './screens/ScannerScreen';
 import AboutScreen from './screens/AboutScreen';
 import SchemesScreen from './screens/SchemesScreen';
+import CalculatorScreen from './screens/CalculatorScreen';
 import { COLORS } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
@@ -29,6 +30,7 @@ export default function App() {
         <Stack.Screen name="Scanner" component={ScannerScreen} />
         <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="Schemes" component={SchemesScreen} />
+        <Stack.Screen name="Calculator" component={CalculatorScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

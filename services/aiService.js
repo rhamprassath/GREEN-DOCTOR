@@ -16,7 +16,7 @@ const KINDWISE_API_TOKEN = ""; // <-- PASTE YOUR KINDWISE API KEY HERE (https://
 const BACKEND_API_URL = "https://rhamprassath-greendoctor-backend.hf.space/predict";
 // ----------------------------------------------------------------------
 
-export const analyzeImage = async (imageUri) => {
+export const analyzeImage = async (imageUri, latitude = null, longitude = null) => {
     try {
         console.log("Analyzing image...");
 
@@ -31,6 +31,10 @@ export const analyzeImage = async (imageUri) => {
                 httpMethod: 'POST',
                 uploadType: FileSystem.FileSystemUploadType.MULTIPART,
                 fieldName: 'file',
+                parameters: {
+                    latitude: latitude?.toString(),
+                    longitude: longitude?.toString()
+                }
             });
 
             console.log("DEBUG: Response Status:", uploadResult.status);

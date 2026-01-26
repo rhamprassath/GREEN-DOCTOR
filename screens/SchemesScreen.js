@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Modal, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SIZES } from '../constants/theme';
@@ -188,18 +189,13 @@ const SchemesScreen = ({ route, navigation }) => {
         <SafeAreaView style={styles.container} edges={['right', 'left', 'top']}>
             <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
 
-            {/* Immersive Header */}
-            <View style={styles.premiumHeader}>
-                <View style={styles.headerTopRow}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>←</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t.govtSchemes}</Text>
-                    <View style={{ width: 44 }} />
-                </View>
-                <View style={styles.headerSearchPlaceholder}>
-                    <Text style={styles.searchLabel}>OFFICIAL GOVERNMENT INITIATIVES</Text>
-                </View>
+            {/* Minimal Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <Text style={styles.backButtonText}>←</Text>
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>{t.govtSchemes}</Text>
+                <View style={{ width: 44 }} />
             </View>
 
             <ScrollView
@@ -298,52 +294,27 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.background,
     },
-    premiumHeader: {
-        backgroundColor: COLORS.primary,
-        paddingTop: 10,
-        paddingBottom: 25,
-        paddingHorizontal: SIZES.padding,
-        borderBottomLeftRadius: 35,
-        borderBottomRightRadius: 35,
-        ...COLORS.shadow.lg,
-    },
-    headerTopRow: {
+    header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        paddingHorizontal: 15,
+        paddingTop: 10,
+        height: 60,
+        backgroundColor: '#fff',
     },
     backButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        padding: 10,
     },
     backButtonText: {
         fontSize: 24,
-        color: COLORS.white,
+        color: COLORS.primary,
         fontWeight: 'bold',
     },
     headerTitle: {
-        fontSize: 20,
-        fontWeight: '900',
-        color: COLORS.white,
-        letterSpacing: 0.5,
-    },
-    headerSearchPlaceholder: {
-        backgroundColor: 'rgba(0,0,0,0.15)',
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    searchLabel: {
-        color: 'rgba(255,255,255,0.6)',
-        fontSize: 10,
-        fontWeight: '900',
-        letterSpacing: 2,
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: COLORS.primary,
     },
     scrollView: {
         flex: 1,

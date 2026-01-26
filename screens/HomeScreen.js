@@ -170,6 +170,20 @@ const HomeScreen = ({ route, navigation }) => {
 
                     <TouchableOpacity
                         style={styles.fullWidthItem}
+                        onPress={() => navigation.navigate('Calculator', { language })}
+                    >
+                        <View style={[styles.itemIconBox, { backgroundColor: '#F3E5F5' }]}>
+                            <Text style={styles.itemIcon}>🔢</Text>
+                        </View>
+                        <View style={styles.itemInfo}>
+                            <Text style={styles.itemTitle}>{language === 'ta' ? "அளவு கணக்கீடு" : "Dosage Calculator"}</Text>
+                            <Text style={styles.itemSubtitle}>{language === 'ta' ? "சரியான மருந்து அளவை அறிய" : "Precise Treatment Quota"}</Text>
+                        </View>
+                        <Text style={[styles.itemChevron, { color: '#9C27B0' }]}>›</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.fullWidthItem}
                         onPress={() => navigation.navigate('Schemes', { language })}
                     >
                         <View style={[styles.itemIconBox, { backgroundColor: '#FFF3E0' }]}>
@@ -298,17 +312,17 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.1)',
     },
     logoCircleLg: {
-        width: 70,
-        height: 70,
-        borderRadius: 35,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
         backgroundColor: COLORS.white,
         justifyContent: 'center',
         alignItems: 'center',
         ...COLORS.shadow.md,
     },
     heroLogo: {
-        width: '80%',
-        height: '80%',
+        width: '118%',
+        height: '118%',
     },
     heroImpact: {
         marginLeft: 15,

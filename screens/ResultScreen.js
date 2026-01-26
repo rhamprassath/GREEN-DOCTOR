@@ -4,10 +4,12 @@ import { COLORS, SIZES } from '../constants/theme';
 import { TRANSLATIONS } from '../constants/translations';
 import { saveScan } from '../utils/storage';
 import { analyzeImage } from '../services/aiService';
+import { speakDiagnosis, stopSpeech } from '../services/voiceService';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const ResultScreen = ({ route, navigation }) => {
     // We expect imageUri and language from HomeScreen
-    const { imageUri, language, analysisResult: initialResult } = route.params || {};
+    const { imageUri, language, analysisResult: initialResult, isHistory } = route.params || {};
 
     const [loading, setLoading] = useState(false);
     const [analysisResult, setAnalysisResult] = useState(initialResult || null);
@@ -55,25 +57,44 @@ const ResultScreen = ({ route, navigation }) => {
         </TouchableOpacity>
     );
 
+    const handleAutoSave = async (result) => {
+        if (!result || isHistory) return;
+        const scanData = {
+            id: Date.now().toString(),
+            timestamp: Date.now(),
+            imageUri: imageUri,
+            analysisResult: result
+        };
+        await saveScan(scanData);
+    };
+
     useEffect(() => {
         if (!initialResult && imageUri && confirmed) {
             performAnalysis();
         }
+
+        // If it's a fresh scan from camera, save it
+        if (initialResult && !isHistory) {
+            handleAutoSave(initialResult);
+        }
+
+        return () => stopSpeech();
     }, [imageUri, initialResult, confirmed]);
+
+    const handleSpeak = () => {
+        if (analysisResult) {
+            const currentSymptoms = symptoms[language];
+            const currentRemedy = activeTab === 'organic' ? remedy_organic[language] : (activeTab === 'chemical' ? remedy_chemical[language] : prevention[language]);
+            speakDiagnosis(name[language], currentSymptoms, currentRemedy, language);
+        }
+    };
 
     const performAnalysis = async () => {
         setLoading(true);
         try {
             const result = await analyzeImage(imageUri);
             setAnalysisResult(result);
-
-            const scanData = {
-                id: Date.now().toString(),
-                timestamp: Date.now(),
-                imageUri: imageUri,
-                analysisResult: result
-            };
-            saveScan(scanData);
+            await handleAutoSave(result);
 
         } catch (error) {
             console.error("Analysis failed", error);
@@ -165,8 +186,18 @@ const ResultScreen = ({ route, navigation }) => {
 
                 <View style={styles.diagnosisCard}>
                     <View style={styles.diagnosisHead}>
-                        <Text style={styles.cropLabelText}>{crop.toUpperCase()}</Text>
-                        <Text style={styles.diagnosisMainTitle}>{name[language]}</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.cropLabelText}>{crop.toUpperCase()}</Text>
+                            <Text style={styles.diagnosisMainTitle}>{name[language]}</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.listenCircle}
+                            onPress={handleSpeak}
+                            activeOpacity={0.7}
+                        >
+                            <MaterialCommunityIcons name="volume-high" size={28} color={COLORS.primary} />
+                            <Text style={styles.listenText}>{language === 'ta' ? "கேளுங்கள்" : "LISTEN"}</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {!isHealthy && (
@@ -621,6 +652,20 @@ const styles = StyleSheet.create({
     errorBtnText: {
         color: COLORS.white,
         fontWeight: '800',
+    },
+    listenCircle: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 5,
+        backgroundColor: COLORS.primary + '10',
+        borderRadius: 15,
+        minWidth: 70,
+    },
+    listenText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: COLORS.primary,
+        marginTop: 2,
     }
 });
 

@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, StatusBar, ActivityIndicator, Easing } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { TRANSLATIONS } from '../constants/translations';
 import { analyzeImage } from '../services/aiService';
+import { getClimateRisk } from '../services/weatherService';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.75;
@@ -13,77 +17,73 @@ const ScannerScreen = ({ navigation, route }) => {
     const t = TRANSLATIONS[language] || TRANSLATIONS['en'];
 
     const [permission, requestPermission] = useCameraPermissions();
-    const [scanMode, setScanMode] = useState('auto'); // 'auto' or 'manual'
+    const [locationPermission, setLocationPermission] = useState(null);
     const [isScanning, setIsScanning] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [statusMessage, setStatusMessage] = useState('LOOKING FOR LEAVES...');
+    const [statusMessage, setStatusMessage] = useState(t.checkLeaf);
+    const [climateRisk, setClimateRisk] = useState(null);
 
     // Animations
-    const laserAnim = useRef(new Animated.Value(0)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const cameraRef = useRef(null);
 
     useEffect(() => {
-        if (isScanning && scanMode === 'auto') {
+        // Request Location permissions
+        (async () => {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            setLocationPermission(status === 'granted');
+        })();
+
+        // Fetch Climate Risk on mount
+        const fetchClimate = async () => {
+            const riskData = await getClimateRisk();
+            setClimateRisk(riskData);
+        };
+        fetchClimate();
+
+        if (isScanning) {
             startAnimations();
-            const interval = setInterval(() => {
-                if (!loading && isScanning && scanMode === 'auto') {
-                    autoCapture();
-                }
-            }, 3000);
             return () => {
-                clearInterval(interval);
-                laserAnim.stopAnimation();
-                pulseAnim.stopAnimation();
-            };
-        } else if (isScanning && scanMode === 'manual') {
-            startAnimations();
-            return () => {
-                laserAnim.stopAnimation();
                 pulseAnim.stopAnimation();
             };
         }
-    }, [isScanning, loading, scanMode]);
+    }, [isScanning]);
 
     const startAnimations = () => {
-        // Laser Sweep
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(laserAnim, {
-                    toValue: SCAN_SIZE - 4,
-                    duration: 2000,
-                    easing: Easing.inOut(Easing.quad),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(laserAnim, {
-                    toValue: 0,
-                    duration: 2000,
-                    easing: Easing.inOut(Easing.quad),
-                    useNativeDriver: true,
-                })
-            ])
-        ).start();
-
         // Frame Pulse
         Animated.loop(
             Animated.sequence([
                 Animated.timing(pulseAnim, {
-                    toValue: 1.05,
-                    duration: 1000,
+                    toValue: 1.03,
+                    duration: 1500,
                     useNativeDriver: true,
                 }),
                 Animated.timing(pulseAnim, {
                     toValue: 1,
-                    duration: 1000,
+                    duration: 1500,
                     useNativeDriver: true,
                 })
             ])
         ).start();
     };
 
-    const autoCapture = async () => {
-        if (!cameraRef.current || loading || !isScanning || scanMode !== 'auto') return;
-        performCapture();
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            alert('Sorry, we need camera roll permissions!');
+            return;
+        }
+
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            setIsScanning(false);
+            navigation.navigate('Result', { imageUri: result.assets[0].uri, language });
+        }
     };
 
     const performCapture = async () => {
@@ -91,35 +91,42 @@ const ScannerScreen = ({ navigation, route }) => {
 
         try {
             setLoading(true);
-            setStatusMessage(scanMode === 'auto' ? 'ANALYZING DETAILS...' : 'CAPTURING...');
+            setStatusMessage('CHECKING LEAF...');
 
             const photo = await cameraRef.current.takePictureAsync({
                 quality: 0.7,
                 base64: false,
             });
 
-            const result = await analyzeImage(photo.uri);
-
-            if (result && result.status === 'success') {
-                // In auto mode, we need high confidence to auto-navigate
-                // In manual mode, we always navigate on button press
-                if (scanMode === 'manual' || (result.confidence > 0.45)) {
-                    setIsScanning(false);
-                    navigation.navigate('Result', {
-                        imageUri: photo.uri,
-                        analysisResult: result,
-                        language
-                    });
-                } else {
-                    setStatusMessage('HOLD STEADY...');
+            // Gathers location if permission granted
+            let latitude = null;
+            let longitude = null;
+            if (locationPermission) {
+                try {
+                    const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    latitude = location.coords.latitude;
+                    longitude = location.coords.longitude;
+                } catch (e) {
+                    console.log("Location capture failed:", e);
                 }
+            }
+
+            const result = await analyzeImage(photo.uri, latitude, longitude);
+
+            if (result) {
+                setIsScanning(false);
+                navigation.navigate('Result', {
+                    imageUri: photo.uri,
+                    analysisResult: result,
+                    language
+                });
             }
         } catch (error) {
             console.log("Scanner Error:", error);
-            setStatusMessage('POOR LIGHTING? TRY AGAIN');
+            setStatusMessage('TRY AGAIN...');
         } finally {
             setLoading(false);
-            if (isScanning) setTimeout(() => setStatusMessage(scanMode === 'auto' ? 'LOOKING FOR LEAVES...' : 'READY FOR CAPTURE'), 1000);
+            if (isScanning) setStatusMessage(t.checkLeaf);
         }
     };
 
@@ -154,7 +161,6 @@ const ScannerScreen = ({ navigation, route }) => {
                 <View style={styles.maskMiddle}>
                     <View style={styles.maskSide} />
                     <View style={styles.scanHole}>
-                        <Animated.View style={[styles.laser, { transform: [{ translateY: laserAnim }] }]} />
                         <Animated.View style={[styles.cornerFrame, { transform: [{ scale: pulseAnim }] }]}>
                             <View style={[styles.corner, styles.topLeft]} />
                             <View style={[styles.corner, styles.topRight]} />
@@ -162,14 +168,9 @@ const ScannerScreen = ({ navigation, route }) => {
                             <View style={[styles.corner, styles.bottomRight]} />
                         </Animated.View>
 
-                        {/* Technical HUD Details */}
-                        <View style={styles.hudTechnicalLeft}>
-                            <View style={styles.hudLine} />
-                            <Text style={styles.hudTechText}>LR-24</Text>
-                        </View>
-                        <View style={styles.hudTechnicalRight}>
-                            <Text style={styles.hudTechText}>AF-ON</Text>
-                            <View style={styles.hudLine} />
+                        {/* Static Leaf Silhouette Guide */}
+                        <View style={styles.leafGuideOverlay}>
+                            <MaterialCommunityIcons name="leaf-outline" size={SCAN_SIZE * 0.4} color="rgba(74, 222, 128, 0.2)" />
                         </View>
                     </View>
                     <View style={styles.maskSide} />
@@ -186,32 +187,41 @@ const ScannerScreen = ({ navigation, route }) => {
                             <Text style={styles.glassBtnText}>✕</Text>
                         </TouchableOpacity>
 
-                        {/* High-Tech Mode Selector */}
-                        <View style={styles.premiumSwitch}>
-                            <TouchableOpacity
-                                style={[styles.switchTab, scanMode === 'auto' && styles.activeSwitchTab]}
-                                onPress={() => setScanMode('auto')}
-                            >
-                                <Text style={[styles.switchTabText, scanMode === 'auto' && styles.activeSwitchTabText]}>
-                                    {t.autoScan}
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.switchTab, scanMode === 'manual' && styles.activeSwitchTab]}
-                                onPress={() => setScanMode('manual')}
-                            >
-                                <Text style={[styles.switchTabText, scanMode === 'manual' && styles.activeSwitchTabText]}>
-                                    {t.manualCapture}
-                                </Text>
-                            </TouchableOpacity>
+                        {/* Simplified Header */}
+                        <View style={styles.headerLabelBox}>
+                            <Text style={styles.headerLabelMain}>{t.checkLeaf.toUpperCase()}</Text>
                         </View>
 
                         <View style={{ width: 44 }} />
                     </View>
 
+                    {/* Climate Predictor Widget */}
+                    {climateRisk && (
+                        <View style={styles.climateWidgetContainer}>
+                            <View style={[styles.climatePill, { borderColor: climateRisk.color + '60' }]}>
+                                <MaterialCommunityIcons
+                                    name={climateRisk.risk === 'High' ? "alert-decagram" : "weather-partly-cloudy"}
+                                    size={20}
+                                    color={climateRisk.color}
+                                />
+                                <View style={styles.climateTextContent}>
+                                    <Text style={[styles.climateRiskTitle, { color: climateRisk.color }]}>
+                                        {climateRisk.risk.toUpperCase()} CLIMATE RISK
+                                    </Text>
+                                    <Text style={styles.climateMessage} numberOfLines={1}>
+                                        {climateRisk.message[language]}
+                                    </Text>
+                                </View>
+                                <View style={styles.climateStats}>
+                                    <Text style={styles.climateStatText}>{Math.round(climateRisk.humidity)}% 💧</Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
                     <View style={styles.statusDisplay}>
                         <View style={styles.statusPill}>
-                            <View style={[styles.pulseDot, { backgroundColor: loading ? COLORS.warning : (scanMode === 'auto' ? '#4ade80' : '#fbbf24') }]} />
+                            <View style={[styles.pulseDot, { backgroundColor: loading ? COLORS.warning : '#4ade80' }]} />
                             <Text style={styles.statusPillText}>{statusMessage}</Text>
                         </View>
                     </View>
@@ -221,15 +231,13 @@ const ScannerScreen = ({ navigation, route }) => {
                 <View style={styles.bottomRegion}>
                     <View style={styles.hintBox}>
                         <Text style={styles.instructionText}>
-                            {scanMode === 'auto'
-                                ? (language === 'ta' ? "இலையை சட்டத்திற்குள் வைக்கவும்" : "AI IS LOOKING FOR DISEASES AUTOMATICALLY")
-                                : (language === 'ta' ? "புகைப்படம் எடுக்க பட்டனை அழுத்தவும்" : "TAP TO CAPTURE MANUALLY")}
+                            {t.centerLeaf.toUpperCase()}
                         </Text>
                     </View>
 
                     <View style={styles.controlCenter}>
-                        <TouchableOpacity style={styles.secondaryCircle} onPress={() => navigation.navigate('About')}>
-                            <Text style={{ fontSize: 24 }}>❓</Text>
+                        <TouchableOpacity style={styles.secondaryCircle} onPress={pickImage}>
+                            <MaterialCommunityIcons name="image-multiple" size={24} color={COLORS.white} />
                         </TouchableOpacity>
 
                         <View style={styles.mainShutterOuter}>
@@ -237,20 +245,18 @@ const ScannerScreen = ({ navigation, route }) => {
                                 style={[
                                     styles.masterShutter,
                                     loading && styles.shutterBusy,
-                                    scanMode === 'auto' && styles.shutterAutoMode
                                 ]}
                                 onPress={performCapture}
                                 disabled={loading}
                             >
-                                <View style={[styles.shutterInnerRing, scanMode === 'auto' && styles.shutterInnerAutoRing]}>
+                                <View style={styles.shutterInnerRing}>
                                     {loading ? (
-                                        <ActivityIndicator color="white" />
+                                        <ActivityIndicator color={COLORS.primary} size="large" />
                                     ) : (
-                                        scanMode === 'manual' ? (
-                                            <View style={styles.manualCore} />
-                                        ) : (
-                                            <Text style={styles.robotIcon}>🤖</Text>
-                                        )
+                                        <View style={styles.checkLeafButton}>
+                                            <MaterialCommunityIcons name="magnify-expand" size={32} color={COLORS.primary} />
+                                            <Text style={styles.shutterActionMsg}>{t.checkLeaf.split(' ')[0]}</Text>
+                                        </View>
                                     )}
                                 </View>
                             </TouchableOpacity>
@@ -260,7 +266,11 @@ const ScannerScreen = ({ navigation, route }) => {
                             style={styles.secondaryCircle}
                             onPress={() => setIsScanning(!isScanning)}
                         >
-                            <Text style={{ fontSize: 24 }}>{isScanning ? '⏸️' : '▶️'}</Text>
+                            <MaterialCommunityIcons
+                                name={isScanning ? "pause" : "play"}
+                                size={24}
+                                color={COLORS.white}
+                            />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -529,6 +539,72 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         fontSize: 16,
         letterSpacing: 1,
+    },
+    climateWidgetContainer: {
+        alignItems: 'center',
+        paddingHorizontal: 25,
+    },
+    climatePill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderRadius: 20,
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        borderWidth: 1.5,
+        width: '100%',
+        ...COLORS.shadow.md,
+    },
+    climateTextContent: {
+        flex: 1,
+        marginLeft: 10,
+    },
+    climateRiskTitle: {
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    climateMessage: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 11,
+        fontWeight: '700',
+        marginTop: 1,
+    },
+    climateStats: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
+    climateStatText: {
+        color: COLORS.white,
+        fontSize: 10,
+        fontWeight: '900',
+    },
+    leafGuideOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerLabelBox: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    headerLabelMain: {
+        color: COLORS.white,
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 2,
+    },
+    checkLeafButton: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    shutterActionMsg: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: COLORS.primary,
+        marginTop: 2,
     }
 });
 

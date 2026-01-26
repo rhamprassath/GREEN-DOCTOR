@@ -45,7 +45,8 @@ const HistoryScreen = ({ navigation, route }) => {
             onPress={() => navigation.navigate('Result', {
                 imageUri: item.imageUri,
                 analysisResult: item.analysisResult,
-                language: language
+                language: language,
+                isHistory: true
             })}
             activeOpacity={0.7}
         >
