@@ -278,7 +278,7 @@ import hashlib
              best_prediction['ai_details_extra'] = f"Potentially: {results_pest[0]['label']}"
 
         # PLANTIX LOGIC: Final check
-        CONFIDENCE_THRESHOLD = 0.45
+        CONFIDENCE_THRESHOLD = 0.15
         
         if best_prediction['score'] < CONFIDENCE_THRESHOLD:
             final_class = "UNKNOWN"

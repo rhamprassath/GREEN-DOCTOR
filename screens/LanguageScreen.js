@@ -22,7 +22,7 @@ const LanguageScreen = ({ navigation }) => {
         >
             <View style={styles.tileContent}>
                 <View style={styles.iconCircle}>
-                    <Text style={styles.tileIcon}>{icon}</Text>
+                    <Text style={styles.tileIcon}>🌐</Text>
                 </View>
                 <View style={styles.tileTextContainer}>
                     <Text style={styles.tileLabel}>{label}</Text>
@@ -66,14 +66,12 @@ const LanguageScreen = ({ navigation }) => {
                         code="en"
                         label="English"
                         subLabel="Continue in English"
-                        icon="🇬🇧"
                     />
 
                     <LanguageTile
                         code="ta"
                         label="தமிழ்"
                         subLabel="தமிழில் தொடரவும்"
-                        icon="🇮🇳"
                     />
                 </View>
 

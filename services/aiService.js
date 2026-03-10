@@ -49,6 +49,41 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
 
                 // Map to database (Try ID first, then Name)
                 const matched = DISEASES.find(d => d.id === data.class || d.name.en === data.class);
+
+                // UNIVERSAL AI LOGIC: If backend says "UNKNOWN", try fallback APIs immediately if keys exist.
+                if (data.class === "UNKNOWN" || (data.confidence < 0.15)) {
+                    console.log("DEBUG: Backend returned UNKNOWN/Low Confidence. Attempting Universal Fallback...");
+                    if (hasKindwiseKey || hasHfKey) {
+                        // Fall through to Tier 3 (Universal Cloud APIs)
+                        throw new Error("FALLBACK_TO_UNIVERSAL");
+                    }
+
+                    return {
+                        id: "UNKNOWN",
+                        risk: "Unknown",
+                        name: { en: "Unknown - Try Closer Scan", ta: "தெரியாதது - மீண்டும் ஸ்கேன் செய்யவும்" },
+                        confidence: 0,
+                        description: {
+                            en: "Our specialized experts could not identify this with high certainty. It might be a crop we don't fully support yet, or the image is unclear.",
+                            ta: "எங்கள் சிறப்பு நிபுணர்களால் இதை உறுதியாக அடையாளம் காண முடியவில்லை."
+                        },
+                        isFallback: true,
+                        // Prevent ResultScreen crash
+                        crop: "Unknown",
+                        isHealthy: false,
+                        severity: "Low",
+                        symptoms: {
+                            en: "We could not detect clear symptoms. Please ensure the leaf is centered and well-lit.",
+                            ta: "தெளிவான அறிகுறிகளை எங்களால் கண்டறிய முடியவில்லை. இலை வெளிச்சத்தில் இருப்பதை உறுதி செய்யவும்."
+                        },
+                        cause: { en: "Unknown", ta: "தெரியாதது" },
+                        remedy: { en: "N/A", ta: "பொருந்தாது" },
+                        remedy_organic: { en: "N/A", ta: "பொருந்தாது" },
+                        remedy_chemical: { en: "N/A", ta: "பொருந்தாது" },
+                        prevention: { en: "N/A", ta: "பொருந்தாது" }
+                    };
+                }
+
                 if (matched) {
                     return {
                         ...matched,
@@ -62,6 +97,10 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
                     ...DISEASES[0], // Fallback structure
                     name: { en: `Detected: ${data.class}`, ta: `கண்டறியப்பட்டது: ${data.class}` },
                     confidence: Math.round(data.confidence * 100),
+                    description: {
+                        en: data.ai_details || "Detected by General Expert",
+                        ta: "பொதுவான நிபுணரால் கண்டறியப்பட்டது"
+                    },
                     isFallback: false,
                     isMock: false
                 }
@@ -69,8 +108,13 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
                 console.log("DEBUG: Server returned non-200 status");
             }
         } catch (e) {
-            console.log("DEBUG: Upload Failed Error:", e);
-            console.log("DEBUG: Error Message:", e.message);
+            if (e.message === "FALLBACK_TO_UNIVERSAL") {
+                console.log("DEBUG: Triggering Universal API Fallback path...");
+            } else {
+                console.log("DEBUG: Upload Failed Error:", e);
+                console.log("DEBUG: Error Message:", e.message);
+                // Only swallow connection errors, rethrow universal fallback
+            }
         }
 
         // 2. Fallback to Cloud APIs if Render fails

@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SIZES, FONTS } from '../constants/theme';
 import { TRANSLATIONS } from '../constants/translations';
 import { analyzeImage } from '../services/aiService';
-import { getClimateRisk } from '../services/weatherService';
+
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
@@ -21,7 +21,7 @@ const ScannerScreen = ({ navigation, route }) => {
     const [isScanning, setIsScanning] = useState(true);
     const [loading, setLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState(t.checkLeaf);
-    const [climateRisk, setClimateRisk] = useState(null);
+
 
     // Animations
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -34,12 +34,7 @@ const ScannerScreen = ({ navigation, route }) => {
             setLocationPermission(status === 'granted');
         })();
 
-        // Fetch Climate Risk on mount
-        const fetchClimate = async () => {
-            const riskData = await getClimateRisk();
-            setClimateRisk(riskData);
-        };
-        fetchClimate();
+
 
         if (isScanning) {
             startAnimations();
@@ -91,36 +86,20 @@ const ScannerScreen = ({ navigation, route }) => {
 
         try {
             setLoading(true);
-            setStatusMessage('CHECKING LEAF...');
+            // setStatusMessage('CHECKING LEAF...'); // Removed loading text as we are just capturing
 
             const photo = await cameraRef.current.takePictureAsync({
-                quality: 0.7,
+                quality: 1.0, // Increased quality
                 base64: false,
             });
 
-            // Gathers location if permission granted
-            let latitude = null;
-            let longitude = null;
-            if (locationPermission) {
-                try {
-                    const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                    latitude = location.coords.latitude;
-                    longitude = location.coords.longitude;
-                } catch (e) {
-                    console.log("Location capture failed:", e);
-                }
-            }
+            // Navigate immediately to ResultScreen for confirmation
+            setIsScanning(false);
+            navigation.navigate('Result', {
+                imageUri: photo.uri,
+                language
+            });
 
-            const result = await analyzeImage(photo.uri, latitude, longitude);
-
-            if (result) {
-                setIsScanning(false);
-                navigation.navigate('Result', {
-                    imageUri: photo.uri,
-                    analysisResult: result,
-                    language
-                });
-            }
         } catch (error) {
             console.log("Scanner Error:", error);
             setStatusMessage('TRY AGAIN...');
@@ -195,29 +174,7 @@ const ScannerScreen = ({ navigation, route }) => {
                         <View style={{ width: 44 }} />
                     </View>
 
-                    {/* Climate Predictor Widget */}
-                    {climateRisk && (
-                        <View style={styles.climateWidgetContainer}>
-                            <View style={[styles.climatePill, { borderColor: climateRisk.color + '60' }]}>
-                                <MaterialCommunityIcons
-                                    name={climateRisk.risk === 'High' ? "alert-decagram" : "weather-partly-cloudy"}
-                                    size={20}
-                                    color={climateRisk.color}
-                                />
-                                <View style={styles.climateTextContent}>
-                                    <Text style={[styles.climateRiskTitle, { color: climateRisk.color }]}>
-                                        {climateRisk.risk.toUpperCase()} CLIMATE RISK
-                                    </Text>
-                                    <Text style={styles.climateMessage} numberOfLines={1}>
-                                        {climateRisk.message[language]}
-                                    </Text>
-                                </View>
-                                <View style={styles.climateStats}>
-                                    <Text style={styles.climateStatText}>{Math.round(climateRisk.humidity)}% 💧</Text>
-                                </View>
-                            </View>
-                        </View>
-                    )}
+
 
                     <View style={styles.statusDisplay}>
                         <View style={styles.statusPill}>

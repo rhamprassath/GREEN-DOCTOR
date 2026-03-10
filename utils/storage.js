@@ -7,6 +7,13 @@ export const saveScan = async (scan) => {
         const existingHistoryStr = await AsyncStorage.getItem(HISTORY_KEY);
         const history = existingHistoryStr ? JSON.parse(existingHistoryStr) : [];
 
+        // DEDUPLICATION: Check if this exact image already exists in history
+        const isDuplicate = history.some(item => item.imageUri === scan.imageUri);
+        if (isDuplicate) {
+            console.log("Duplicate scan detected, skipping save");
+            return history; // Don't save duplicates
+        }
+
         // Add new scan to the beginning
         const newHistory = [scan, ...history];
 

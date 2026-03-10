@@ -220,7 +220,8 @@ const HomeScreen = ({ route, navigation }) => {
                                 onPress={() => navigation.navigate('Result', {
                                     imageUri: item.imageUri,
                                     analysisResult: item.analysisResult,
-                                    language: language
+                                    language: language,
+                                    isHistory: true
                                 })}
                             >
                                 <Image source={{ uri: item.imageUri }} style={styles.previewImage} />
