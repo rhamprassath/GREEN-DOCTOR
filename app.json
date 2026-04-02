@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.rhamprassath.GreenDoctor",
-      "versionCode": 1,
+      "versionCode": 4,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.ACCESS_FINE_LOCATION",

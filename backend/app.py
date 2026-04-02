@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import gc
 import torch
-from .database import log_scan, init_db
+from backend.database import log_scan, init_db
 
 torch.set_num_threads(1)
 
@@ -197,6 +197,7 @@ def debug_status():
 import hashlib
 
 @app.post("/predict")
+async def predict(
     file: UploadFile = File(...),
     latitude: float = Form(None),
     longitude: float = Form(None)

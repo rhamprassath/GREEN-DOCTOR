@@ -15,6 +15,7 @@ const ResultScreen = ({ route, navigation }) => {
     const [analysisResult, setAnalysisResult] = useState(initialResult || null);
     const [confirmed, setConfirmed] = useState(!!initialResult);
     const [activeTab, setActiveTab] = useState('organic');
+    const [errorMsg, setErrorMsg] = useState(null);
 
     const translations = TRANSLATIONS[language] || TRANSLATIONS['en'];
 
@@ -98,6 +99,7 @@ const ResultScreen = ({ route, navigation }) => {
 
         } catch (error) {
             console.error("Analysis failed", error);
+            setErrorMsg(error.message || "Unknown error");
         } finally {
             setLoading(false);
         }
@@ -150,7 +152,12 @@ const ResultScreen = ({ route, navigation }) => {
         return (
             <View style={styles.container}>
                 <View style={styles.loaderContainer}>
-                    <Text style={styles.errorTextHeading}>{translations.error || "System Error"}</Text>
+                    <Text style={styles.errorTextHeading}>{translations.error || "Analysis Failed"}</Text>
+                    {errorMsg && (
+                        <Text style={[styles.confirmSubTitle, { color: COLORS.error, paddingHorizontal: 20 }]}>
+                            {errorMsg}
+                        </Text>
+                    )}
                     <TouchableOpacity style={styles.errorBtn} onPress={() => navigation.navigate('Home')}>
                         <Text style={styles.errorBtnText}>{translations.backHome}</Text>
                     </TouchableOpacity>
