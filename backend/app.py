@@ -96,9 +96,9 @@ def focalize_leaf(image_bytes):
         plant_pixels = cv2.countNonZero(mask)
         density = (plant_pixels / total_pixels) * 100
         
-        # Rejection Threshold: If less than 2.5% of the image is plant-like, it's likely not a leaf
-        if density < 2.5:
-             print(f"Leaf Validation FAILED: Density {density:.2f}% < 2.5%")
+        # Rejection Threshold: If less than 1.0% of the image is plant-like, it's likely not a leaf
+        if density < 1.0:
+             print(f"Leaf Validation FAILED: Density {density:.2f}% < 1.0%")
              return None, density
 
         # 5. Find the largest contour (assuming it's the leaf)
@@ -259,7 +259,8 @@ async def predict(
             }
             mapped = RICE_LEGACY_MAP.get(ai_label)
             if mapped and (ai_score > 0.60 or (mapped.startswith("Paddy") and ai_score > 0.45)):
-                if ai_score > best_prediction['score']:
+                # Only override if confidence is significantly higher than previous best (Avoid oscillation)
+                if ai_score > (best_prediction['score'] + 0.15):
                     best_prediction = {"class": mapped, "score": ai_score, "expert": "Cereal Expert", "label": ai_label}
 
         # Pass 3: General Expert (Strict Fallback)

@@ -16,6 +16,6 @@ def get_seasonal_experts():
     elif month in [11, 12, 1, 2, 3]: # Rabi (Winter)
         experts.append({"id": "seasonal", "name": "Wheat/Potato Expert", "model": "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"}) # Example
     else: # Zaid (Summer)
-        experts.append({"id": "seasonal", "name": "Vegetable Expert", "model": "dennisjnr/insect-classification"})
+        experts.append({"id": "seasonal", "name": "Vegetable Expert", "model": "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"})
         
     return experts
