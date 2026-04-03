@@ -1,21 +1,12 @@
 from datetime import datetime
 
 def get_seasonal_experts():
-    month = datetime.now().month
-    
-    # Base models that always load
+    # Only load the two most reliable models
+    # 1. Plant Disease Specialist (The 'Good' model from a month ago)
+    # 2. Pest & Insect Detector (Essential for crop protection)
     experts = [
-        {"id": "general", "model": "microsoft/swin-tiny-patch4-window7-224"},
-        {"id": "specialist", "model": "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"},
-        {"id": "pest", "model": "dennisjnr/insect-classification"}
+        {"id": "specialist", "name": "Plant Health Specialist", "model": "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"},
+        {"id": "pest", "name": "Entomology Expert", "model": "dennisjnr/insect-classification"}
     ]
     
-    # Seasonal Crop Experts
-    if month in [6, 7, 8, 9, 10]: # Kharif (Monsoon)
-        experts.append({"id": "seasonal", "name": "Paddy/Cereal Expert", "model": "wambugu71/crop_leaf_diseases_vit"})
-    elif month in [11, 12, 1, 2, 3]: # Rabi (Winter)
-        experts.append({"id": "seasonal", "name": "Wheat/Potato Expert", "model": "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"}) # Example
-    else: # Zaid (Summer)
-        experts.append({"id": "seasonal", "name": "Vegetable Expert", "model": "dennisjnr/insect-classification"})
-        
     return experts

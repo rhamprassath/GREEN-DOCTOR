@@ -11,7 +11,7 @@ img_byte_arr = img_byte_arr.getvalue()
 print("Sending test image to /predict...")
 try:
     response = requests.post(
-        "http://localhost:8000/predict",
+        "http://localhost:10000/predict",
         files={"file": ("test.jpg", img_byte_arr, "image/jpeg")}
     )
     print("Response Status:", response.status_code)

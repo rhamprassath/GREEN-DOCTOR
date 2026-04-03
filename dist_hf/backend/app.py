@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import gc
 import torch
-from .database import log_scan, init_db
+from backend.database import log_scan, init_db
 
 torch.set_num_threads(1)
 
@@ -48,27 +48,25 @@ from .model_manifest import get_seasonal_experts
 
 def get_experts():
     from transformers import pipeline
-    global GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST, PEST_EXPERT
+    global PLANT_SPECIALIST, PEST_EXPERT
     
-    if all(x is None for x in [GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST, PEST_EXPERT]):
+    if PLANT_SPECIALIST is None or PEST_EXPERT is None:
         manifest = get_seasonal_experts()
-        print(f"Loading Seasonal AI Pipeline for Month {datetime.now().month}...")
+        print(f"Loading Simplified AI Pipeline...")
         
         for entry in manifest:
             try:
                 pipe = pipeline("image-classification", model=entry['model'])
-                if entry['id'] == 'general': GENERAL_EXPERT = pipe
-                elif entry['id'] == 'specialist': PLANT_SPECIALIST = pipe
+                if entry['id'] == 'specialist': PLANT_SPECIALIST = pipe
                 elif entry['id'] == 'pest': PEST_EXPERT = pipe
-                elif entry['id'] == 'seasonal': RICE_EXPERT = pipe
-                print(f"Expert [{entry.get('name', entry['id'])}] Loaded.")
+                print(f"Expert [{entry['name']}] Loaded.")
             except Exception as e:
                 print(f"Expert {entry['id']} Failed: {e}")
 
         torch.set_grad_enabled(False)
         gc.collect()
         
-    return GENERAL_EXPERT, RICE_EXPERT, PLANT_SPECIALIST, PEST_EXPERT
+    return PLANT_SPECIALIST, PEST_EXPERT
 
 def focalize_leaf(image_bytes):
     import numpy as np
@@ -96,9 +94,9 @@ def focalize_leaf(image_bytes):
         plant_pixels = cv2.countNonZero(mask)
         density = (plant_pixels / total_pixels) * 100
         
-        # Rejection Threshold: If less than 2.5% of the image is plant-like, it's likely not a leaf
-        if density < 2.5:
-             print(f"Leaf Validation FAILED: Density {density:.2f}% < 2.5%")
+        # Rejection Threshold: If less than 1.0% of the image is plant-like, it's likely not a leaf
+        if density < 1.0:
+             print(f"Leaf Validation FAILED: Density {density:.2f}% < 1.0%")
              return None, density
 
         # 5. Find the largest contour (assuming it's the leaf)
@@ -197,21 +195,23 @@ def debug_status():
 import hashlib
 
 @app.post("/predict")
+async def predict(
     file: UploadFile = File(...),
     latitude: float = Form(None),
     longitude: float = Form(None)
 ):
     print(f"Leaf Vision Processing: {file.filename} (Lat: {latitude}, Lng: {longitude})")
     try:
-        gen_expert, rice_expert, plant_specialist, pest_expert = get_experts()
+        # 1. LOAD MODELS
+        plant_specialist, pest_expert = get_experts()
         contents = await file.read()
         
-        # 0. LEAF FOCALIZER: Pre-process and VALIDATE if it's a leaf
+        # 2. QUALITY CHECK (FOCALIZER)
+        # Pre-process and validate if it's a leaf based on plant-color density
         image, density = focalize_leaf(contents)
         
         if image is None:
             print(f"REJECTED: Low Leaf Density ({density:.2f}%)")
-            # LOG REJECTION
             log_scan("REJECTED_LOW_DENSITY", 0.0, latitude, longitude, status="rejected")
             return {
                 "class": "UNKNOWN",
@@ -220,80 +220,47 @@ import hashlib
                 "status": "success"
             }
 
-        # 1. RUN ALL EXPERTS (with safety checks)
-        results_gen = GENERAL_EXPERT(image) if GENERAL_EXPERT else []
-        results_rice = RICE_EXPERT(image) if RICE_EXPERT else []
-        results_specialist = PLANT_SPECIALIST(image) if PLANT_SPECIALIST else []
-        results_pest = PEST_EXPERT(image) if PEST_EXPERT else []
+        # 3. CORE AI LOGIC (PERFECT DETECTION RESTORATION)
+        # Focus on the Specialist model (PlantVillage) which was the "Good" model from a month ago
+        specialist_results = plant_specialist(image) if plant_specialist else []
         
-        # 2. ENSEMBLE LOGIC: Pick the winner based on confidence
-        best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none", "label": "None"}
+        final_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none", "label": "None"}
         
-        # PASS 0: Pest Detection (Priority - if it's a bug, it's a bug)
-        if results_pest and results_pest[0]['score'] > 0.65:
-            pest_label = results_pest[0]['label']
-            best_prediction = {
-                "class": f"Pest: {pest_label}", 
-                "score": results_pest[0]['score'], 
-                "expert": "Entomology Expert", 
-                "label": pest_label
-            }
-
-        # Pass 1: Plant Village Specialist
-        if not best_prediction['expert'] == "Entomology Expert" and results_specialist:
-            ai_label = results_specialist[0]['label']
-            ai_score = results_specialist[0]['score']
+        if specialist_results:
+            ai_label = specialist_results[0]['label']
+            ai_score = specialist_results[0]['score']
             mapped = PLANT_VILLAGE_MAP.get(ai_label)
-            if mapped and ai_score > 0.45:
-                best_prediction = {"class": mapped, "score": ai_score, "expert": "Specialist", "label": ai_label}
+            
+            # CASE A: High Confidence Specialist (Success)
+            if mapped and ai_score > 0.40:
+                final_prediction = {"class": mapped, "score": ai_score, "expert": "Specialist", "label": ai_label}
+            
+            # CASE B: Medium Confidence - Check for Pests
+            elif ai_score > 0.15:
+                # Specialist is unsure, let's see if the Entomology expert sees a bug
+                pest_results = pest_expert(image) if pest_expert else []
+                if pest_results and pest_results[0]['score'] > 0.70:
+                    pest_label = pest_results[0]['label']
+                    final_prediction = {"class": f"Pest: {pest_label}", "score": pest_results[0]['score'], "expert": "Entomology", "label": pest_label}
+                elif mapped:
+                    # No pest found, stick with Specialist even if confidence is moderate
+                    final_prediction = {"class": mapped, "score": ai_score, "expert": "Specialist", "label": ai_label}
+            
+            # CASE C: Low Confidence (Safety Reject)
+            else:
+                final_prediction = {"class": "UNKNOWN", "score": ai_score, "expert": "Specialist", "label": "Low Confidence"}
 
-        # Pass 2: Rice/Wheat Specialist
-        if not best_prediction['expert'] == "Entomology Expert" and results_rice:
-            ai_label = results_rice[0]['label']
-            ai_score = results_rice[0]['score']
-            RICE_LEGACY_MAP = {
-                'Rice___Brown_Spot': 'Paddy - Brown Spot', 'Rice___Healthy': 'Paddy - Healthy', 'Rice___Leaf_Blast': 'Paddy - Blast',
-                'Corn___Common_Rust': 'Corn - Common Rust', 'Corn___Gray_Leaf_Spot': 'Corn - Gray Leaf Spot', 'Corn___Healthy': 'Corn - Healthy',
-                'Potato___Early_blight': 'Potato - Early Blight', 'Potato___Healthy': 'Potato - Healthy', 'Potato___Late_Blight': 'Potato - Late Blight'
-            }
-            mapped = RICE_LEGACY_MAP.get(ai_label)
-            if mapped and (ai_score > 0.60 or (mapped.startswith("Paddy") and ai_score > 0.45)):
-                if ai_score > best_prediction['score']:
-                    best_prediction = {"class": mapped, "score": ai_score, "expert": "Cereal Expert", "label": ai_label}
-
-        # Pass 3: General Expert (Strict Fallback)
-        if results_gen and best_prediction['score'] < 0.40:
-            ai_label = results_gen[0]['label']
-            ai_score = results_gen[0]['score']
-            mapped = GENERAL_MAP.get(ai_label)
-            if mapped and ai_score > 0.60:
-                if ai_score > best_prediction['score']:
-                    best_prediction = {"class": mapped, "score": ai_score, "expert": "General", "label": ai_label}
-            elif ai_score > 0.85:
-                best_prediction = {"class": f"Detected: {ai_label}", "score": ai_score, "expert": "General", "label": ai_label}
-        
-        # FINAL CHECK: If it's a pest but confidence is low, keep searching but log it
-        if results_pest and results_pest[0]['score'] > 0.35 and best_prediction['score'] < 0.50:
-             # If AI is unsure about disease but sees a bug, mention the potential pest
-             best_prediction['ai_details_extra'] = f"Potentially: {results_pest[0]['label']}"
-
-        # PLANTIX LOGIC: Final check
-        CONFIDENCE_THRESHOLD = 0.15
-        
-        if best_prediction['score'] < CONFIDENCE_THRESHOLD:
-            final_class = "UNKNOWN"
-            print(f"UNCERTAIN Ensemble: {best_prediction.get('label', 'None')} ({best_prediction['score']*100:.1f}%) < Threshold")
-        else:
-            final_class = best_prediction['class']
-            print(f"WINNER [{best_prediction['expert']}]: {best_prediction.get('label', 'None')} -> {final_class} ({best_prediction['score']*100:.1f}%)")
+        # 4. FINALIZATION
+        final_class = final_prediction['class']
+        print(f"PREDICTION [{final_prediction['expert']}]: {final_prediction.get('label', 'None')} -> {final_class} ({final_prediction['score']*100:.1f}%)")
         
         # LOG TO TELEMETRY DATABASE
-        log_scan(final_class, float(best_prediction['score']), latitude, longitude)
+        log_scan(final_class, float(final_prediction['score']), latitude, longitude)
 
         return {
             "class": final_class,
-            "confidence": float(best_prediction['score']),
-            "ai_details": f"{best_prediction['expert']}: {best_prediction.get('label', 'None')} (Density: {density:.1f}%)",
+            "confidence": float(final_prediction['score']),
+            "ai_details": f"{final_prediction['expert']}: {final_prediction.get('label', 'None')} (Density: {density:.1f}%)",
             "status": "success"
         }
     except Exception as e:
@@ -301,6 +268,7 @@ import hashlib
         return {"error": str(e), "status": "failed"}
 
 if __name__ == "__main__":
+    import uvicorn
     # Get port from environment (Render default is 10000)
     port = int(os.environ.get("PORT", 10000))
     print(f"Server starting on port {port}...")
