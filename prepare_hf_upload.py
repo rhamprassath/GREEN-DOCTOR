@@ -9,10 +9,22 @@ def main():
     source_dir = os.getcwd()
     dist_dir = os.path.join(source_dir, "dist_hf")
     
-    # 1. Clean previous dist
+    # 1. Clean previous dist (preserve .git)
     if os.path.exists(dist_dir):
-        shutil.rmtree(dist_dir)
-    os.makedirs(dist_dir)
+        print("   -> Cleaning dist_hf (preserving .git)...")
+        for item in os.listdir(dist_dir):
+            if item == ".git":
+                continue
+            item_path = os.path.join(dist_dir, item)
+            try:
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    os.unlink(item_path)
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+            except Exception as e:
+                print(f"      ! Could not delete {item}: {e}")
+    else:
+        os.makedirs(dist_dir)
     
     # 2. Copy Dockerfile
     print("   -> Copying Dockerfile...")
