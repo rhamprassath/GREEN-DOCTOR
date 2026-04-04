@@ -220,7 +220,7 @@ async def predict(
         # 3. If Specialist is confident in a known class, trust Specialist (it has better granularity for those 38).
         # 4. If nothing is confident, try Pest.
         
-        # Primary: Generalist for Rice and Broad Crop Detection
+        # Primary: Generalist for Rice, Wheat, and broad crops
         if gen_res:
             label = gen_res[0]['label']
             score = gen_res[0]['score']
@@ -233,9 +233,21 @@ async def predict(
             s_label = spec_res[0]['label']
             s_score = spec_res[0]['score']
             s_mapped = SPECIALIST_MAP.get(s_label)
-            # If specialist is MORE confident than generalist, OR generalist was unsure
-            if s_mapped and (s_score > best_prediction['score']):
-                best_prediction = {"class": s_mapped, "score": s_score, "expert": "Specialist"}
+            
+            if s_mapped:
+                # Smart Tie-Breaker Logic
+                is_unique_to_gen = "Rice" in best_prediction['class'] or "Wheat" in best_prediction['class']
+                
+                if is_unique_to_gen:
+                    # Generalist is the ONLY expert that actually knows Rice/Wheat.
+                    # Only allow Specialist to override if Specialist is extremely confident AND Generalist is extremely weak.
+                    if s_score > 0.85 and best_prediction['score'] < 0.20:
+                        best_prediction = {"class": s_mapped, "score": s_score, "expert": "Specialist"}
+                else:
+                    # For shared crops (Potato, Corn) OR Specialist-only crops (Tomato, Apple), the Generalist is either coarse or hallucinating.
+                    # Give the Specialist a mathematical multiplier (1.5x) to compete fairly with Generalist's inflated 13-class probabilities.
+                    if (s_score * 1.5) > best_prediction['score'] or s_score > 0.40:
+                        best_prediction = {"class": s_mapped, "score": s_score, "expert": "Specialist"}
 
         # Fallback: Pest expert
         if pest_res:
