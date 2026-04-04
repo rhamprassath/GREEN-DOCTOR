@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { DISEASES } from '../constants/diseases';
 
 // ----------------------------------------------------------------------
@@ -27,14 +27,20 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
         try {
             console.log("---------------------------------------------------");
             console.log("DEBUG: Sending request to:", BACKEND_API_URL);
+            const uploadParams = {};
+            if (latitude) uploadParams.latitude = String(latitude);
+            if (longitude) uploadParams.longitude = String(longitude);
+
+            const filename = imageUri.split('/').pop() || 'image.jpg';
+            const match = /\.(\w+)$/.exec(filename);
+            const type = match ? `image/${match[1]}` : `image/jpeg`;
+
             const uploadResult = await FileSystem.uploadAsync(BACKEND_API_URL, imageUri, {
                 httpMethod: 'POST',
                 uploadType: FileSystem.FileSystemUploadType.MULTIPART,
                 fieldName: 'file',
-                parameters: {
-                    latitude: latitude?.toString(),
-                    longitude: longitude?.toString()
-                }
+                mimeType: type,
+                parameters: uploadParams
             });
 
             console.log("DEBUG: Response Status:", uploadResult.status);
@@ -105,7 +111,11 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
                     isMock: false
                 }
             } else {
-                console.log("DEBUG: Server returned non-200 status");
+                console.log("DEBUG: Server returned non-200 status:", uploadResult.status);
+                if (uploadResult.status === 503 || uploadResult.status === 504) {
+                    throw new Error("SERVER_WAKING_UP");
+                }
+                throw new Error(`HTTP_ERROR_${uploadResult.status}`);
             }
         } catch (e) {
             if (e.message === "FALLBACK_TO_UNIVERSAL") {
@@ -113,21 +123,26 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
             } else {
                 console.log("DEBUG: Upload Failed Error:", e);
                 console.log("DEBUG: Error Message:", e.message);
-                // Only swallow connection errors, rethrow universal fallback
+                if (e.message && (e.message.includes("503") || e.message.includes("timeout"))) {
+                    throw new Error("SERVER_WAKING_UP");
+                }
+                throw e; // Rethrow unexpected network or deprecation errors
             }
         }
 
         // 2. Fallback to Cloud APIs if Render fails
-        const base64 = await FileSystem.readAsStringAsync(imageUri, {
-            encoding: 'base64',
-        });
+        if (hasKindwiseKey || hasHfKey) {
+            const base64 = await FileSystem.readAsStringAsync(imageUri, {
+                encoding: 'base64',
+            });
 
-        if (hasKindwiseKey) {
-            return await analyzeWithKindwise(base64);
-        }
+            if (hasKindwiseKey) {
+                return await analyzeWithKindwise(base64);
+            }
 
-        if (hasHfKey) {
-            return await analyzeWithHuggingFace(base64);
+            if (hasHfKey) {
+                return await analyzeWithHuggingFace(base64);
+            }
         }
 
         // If everything fails, throw to the main catch block
@@ -136,22 +151,18 @@ export const analyzeImage = async (imageUri, latitude = null, longitude = null) 
     } catch (error) {
         console.error("AI Service Error:", error);
 
-        // Fallback to Mock
-        const { analyzeImage: mockAnalyze } = require('./mockAI');
-        const mockResult = await mockAnalyze(imageUri);
-
-        let errorMessage = "Offline Mode";
-        if (error.message === "NO_API_KEY" || error.message === "ALL_SERVICES_FAILED") {
-            errorMessage = "Using Demo Mode";
+        // Determine clear user-facing error message
+        let errorMessage = "Cannot reach AI servers. Please check your internet connection.";
+        
+        if (error.message && (error.message === "ALL_SERVICES_FAILED" || error.message === "SERVER_WAKING_UP" || error.message.includes("Network") || error.message.includes("timeout"))) {
+            errorMessage = "AI Server is waking up (first request takes 60 seconds). Please wait a moment and try again.";
+        } else if (error.message && error.message.includes("SERVER_ERROR")) {
+            errorMessage = "Server processing error. Ensure the image is clear.";
         } else {
-            errorMessage = "Server Error (Backend)";
+            errorMessage = `AI Server Details: ${error.message}`; // Show exact reason for debugging
         }
 
-        return {
-            ...mockResult,
-            isMock: true,
-            error: errorMessage
-        };
+        throw new Error(errorMessage);
     }
 };
 

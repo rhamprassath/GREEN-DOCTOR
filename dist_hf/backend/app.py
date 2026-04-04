@@ -139,7 +139,10 @@ GENERALIST_MAP = {
     'Tomato___Septoria_Leaf_Spot': 'Tomato - Septoria Spot',
     'Tomato___Target_Spot': 'Tomato - Target Spot',
     'Tomato___Yellow_Leaf_Curl_Virus': 'Tomato - Yellow Leaf Curl',
-    'Tomato___Mosaic_Virus': 'Tomato - Mosaic Virus'
+    'Tomato___Mosaic_Virus': 'Tomato - Mosaic Virus',
+    'Wheat___Brown_Rust': 'Wheat - Brown Rust',
+    'Wheat___Healthy': 'Wheat - Healthy',
+    'Wheat___Yellow_Rust': 'Wheat - Yellow Rust'
 }
 
 # Specialist Map (PlantVillage 38 Classes)
@@ -222,7 +225,7 @@ async def predict(
             label = gen_res[0]['label']
             score = gen_res[0]['score']
             mapped = GENERALIST_MAP.get(label)
-            if mapped and score > 0.40:
+            if mapped:
                 best_prediction = {"class": mapped, "score": score, "expert": "Generalist"}
 
         # Alternative: Specialist for deep PlantVillage support
@@ -231,17 +234,17 @@ async def predict(
             s_score = spec_res[0]['score']
             s_mapped = SPECIALIST_MAP.get(s_label)
             # If specialist is MORE confident than generalist, OR generalist was unsure
-            if s_mapped and (s_score > best_prediction['score'] or s_score > 0.6):
+            if s_mapped and (s_score > best_prediction['score']):
                 best_prediction = {"class": s_mapped, "score": s_score, "expert": "Specialist"}
 
         # Fallback: Pest expert
-        if best_prediction['score'] < 0.35 and pest_res:
+        if pest_res:
             p_score = pest_res[0]['score']
-            if p_score > 0.65:
+            if p_score > 0.40 and p_score > best_prediction['score']:
                 best_prediction = {"class": f"Pest: {pest_res[0]['label']}", "score": p_score, "expert": "Entomology"}
 
         # Final Handling for "Random Images"
-        if best_prediction['score'] < 0.25:
+        if best_prediction['score'] < 0.12:
              best_prediction = {"class": "UNKNOWN", "score": best_prediction['score'], "expert": "System Rejection"}
 
         final_class = best_prediction['class']
