@@ -73,7 +73,9 @@ def get_experts():
                             img_array = (img_array - mean) / std
                             # HWC to CHW format required by PyTorch
                             img_array = img_array.transpose(2, 0, 1)
-                            return self.torch.tensor(img_array).unsqueeze(0)
+                            # Match model's precision datatype
+                            tensor = self.torch.tensor(img_array).unsqueeze(0)
+                            return tensor.to(next(self.model.parameters()).dtype)
 
                         def __call__(self, image):
                             inputs = self.manual_image_processor(image)
