@@ -59,7 +59,7 @@ def get_experts():
                     
                     class SpecialistPipeline:
                         def __init__(self, model_name):
-                            self.model = AutoModelForImageClassification.from_pretrained(model_name)
+                            self.model = AutoModelForImageClassification.from_pretrained(model_name).to(torch.float32)
                             self.model.eval()
                             self.torch = torch
                             
@@ -73,9 +73,8 @@ def get_experts():
                             img_array = (img_array - mean) / std
                             # HWC to CHW format required by PyTorch
                             img_array = img_array.transpose(2, 0, 1)
-                            # Match model's precision datatype
-                            tensor = self.torch.tensor(img_array).unsqueeze(0)
-                            return tensor.to(next(self.model.parameters()).dtype)
+                            # Explicitly force float32 unconditionally
+                            return self.torch.tensor(img_array, dtype=self.torch.float32).unsqueeze(0)
 
                         def __call__(self, image):
                             inputs = self.manual_image_processor(image)
