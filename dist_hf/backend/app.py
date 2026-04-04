@@ -51,8 +51,14 @@ def get_experts():
         
         for entry in manifest:
             try:
-                # Use fast=False for better compatibility with some older model configs
-                pipe = pipeline("image-classification", model=entry['model'])
+                # Provide strict image processor fallback to correct the HuggingFace missing preprocessor_config crash
+                if entry['id'] == 'specialist':
+                    from transformers import AutoImageProcessor
+                    processor = AutoImageProcessor.from_pretrained("google/mobilenet_v2_1.0_224")
+                    pipe = pipeline("image-classification", model=entry['model'], image_processor=processor)
+                else:
+                    pipe = pipeline("image-classification", model=entry['model'])
+                    
                 if entry['id'] == 'generalist': GENERAL_EXPERT = pipe
                 elif entry['id'] == 'specialist': PLANT_SPECIALIST = pipe
                 elif entry['id'] == 'pest': PEST_EXPERT = pipe
