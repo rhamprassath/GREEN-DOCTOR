@@ -53,20 +53,32 @@ def get_experts():
             try:
                 # Provide strict image processor fallback to correct the HuggingFace missing preprocessor_config crash
                 if entry['id'] == 'specialist':
-                    from transformers import AutoImageProcessor, AutoModelForImageClassification
+                    from transformers import AutoModelForImageClassification
                     import torch
+                    import numpy as np
                     
                     class SpecialistPipeline:
                         def __init__(self, model_name):
-                            self.processor = AutoImageProcessor.from_pretrained("google/mobilenet_v2_1.0_224")
                             self.model = AutoModelForImageClassification.from_pretrained(model_name)
                             self.model.eval()
                             self.torch = torch
+                            
+                        def manual_image_processor(self, image):
+                            # Completely replaces AutoImageProcessor so torchvision is never required
+                            img = image.convert("RGB").resize((224, 224))
+                            img_array = np.array(img).astype(np.float32) / 255.0
+                            # Standard ImageNet Normalization
+                            mean = np.array([0.485, 0.456, 0.406])
+                            std = np.array([0.229, 0.224, 0.225])
+                            img_array = (img_array - mean) / std
+                            # HWC to CHW format required by PyTorch
+                            img_array = img_array.transpose(2, 0, 1)
+                            return self.torch.tensor(img_array).unsqueeze(0)
 
                         def __call__(self, image):
-                            inputs = self.processor(images=image, return_tensors="pt")
+                            inputs = self.manual_image_processor(image)
                             with self.torch.no_grad():
-                                outputs = self.model(**inputs)
+                                outputs = self.model(inputs)
                             probs = self.torch.nn.functional.softmax(outputs.logits, dim=-1)[0]
                             predicted_idx = probs.argmax().item()
                             return [{"label": self.model.config.id2label[predicted_idx], "score": probs[predicted_idx].item()}]
