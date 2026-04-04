@@ -256,6 +256,7 @@ async def predict(
         gen_class, gen_score = None, 0.0
         if gen_res:
             label = gen_res[0]['label']
+            print(f"DEBUG GEN RAW OUTPUT: '{label}' | Map value: {GENERALIST_MAP.get(label)}")
             if GENERALIST_MAP.get(label):
                 gen_class = GENERALIST_MAP.get(label)
                 gen_score = gen_res[0]['score']
@@ -263,6 +264,7 @@ async def predict(
         spec_class, spec_score = None, 0.0
         if spec_res:
             s_label = spec_res[0]['label']
+            print(f"DEBUG SPEC RAW OUTPUT: '{s_label}' | Map value: {SPECIALIST_MAP.get(s_label)}")
             if SPECIALIST_MAP.get(s_label):
                 spec_class = SPECIALIST_MAP.get(s_label)
                 spec_score = spec_res[0]['score']
