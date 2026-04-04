@@ -68,9 +68,9 @@ def get_experts():
                             # Completely replaces AutoImageProcessor so torchvision is never required
                             img = image.convert("RGB").resize((224, 224))
                             img_array = np.array(img).astype(np.float32) / 255.0
-                            # Standard ImageNet Normalization
-                            mean = np.array([0.485, 0.456, 0.406])
-                            std = np.array([0.229, 0.224, 0.225])
+                            # MobileNetV2 uses strictly 0.5 means/stds
+                            mean = np.array([0.5, 0.5, 0.5])
+                            std = np.array([0.5, 0.5, 0.5])
                             img_array = (img_array - mean) / std
                             # HWC to CHW format required by PyTorch
                             img_array = img_array.transpose(2, 0, 1)
@@ -202,7 +202,9 @@ SPECIALIST_MAP = {
     "Peach with Bacterial Spot": "Peach - Bacterial Spot",
     "Healthy Peach": "Peach - Healthy",
     "Pepper Bell with Bacterial Spot": "Pepper - Bacterial Spot",
+    "Bell Pepper with Bacterial Spot": "Pepper - Bacterial Spot",
     "Healthy Pepper Bell": "Pepper - Healthy",
+    "Healthy Bell Pepper": "Pepper - Healthy",
     "Potato with Early Blight": "Potato - Early Blight",
     "Potato with Late Blight": "Potato - Late Blight",
     "Healthy Potato Plant": "Potato - Healthy",
@@ -258,7 +260,6 @@ async def predict(
         gen_class, gen_score = None, 0.0
         if gen_res:
             label = gen_res[0]['label']
-            print(f"DEBUG GEN RAW OUTPUT: '{label}' | Map value: {GENERALIST_MAP.get(label)}")
             if GENERALIST_MAP.get(label):
                 gen_class = GENERALIST_MAP.get(label)
                 gen_score = gen_res[0]['score']
@@ -266,7 +267,6 @@ async def predict(
         spec_class, spec_score = None, 0.0
         if spec_res:
             s_label = spec_res[0]['label']
-            print(f"DEBUG SPEC RAW OUTPUT: '{s_label}' | Map value: {SPECIALIST_MAP.get(s_label)}")
             if SPECIALIST_MAP.get(s_label):
                 spec_class = SPECIALIST_MAP.get(s_label)
                 spec_score = spec_res[0]['score']
