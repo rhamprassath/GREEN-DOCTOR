@@ -219,35 +219,44 @@ async def predict(
         # 2. If Generalist detects a plant type but not sure of disease, ask Specialist.
         # 3. If Specialist is confident in a known class, trust Specialist (it has better granularity for those 38).
         # 4. If nothing is confident, try Pest.
-        
-        # Primary: Generalist for Rice, Wheat, and broad crops
+        gen_class, gen_score = None, 0.0
         if gen_res:
             label = gen_res[0]['label']
-            score = gen_res[0]['score']
-            mapped = GENERALIST_MAP.get(label)
-            if mapped:
-                best_prediction = {"class": mapped, "score": score, "expert": "Generalist"}
+            if GENERALIST_MAP.get(label):
+                gen_class = GENERALIST_MAP.get(label)
+                gen_score = gen_res[0]['score']
 
-        # Alternative: Specialist for deep PlantVillage support
+        spec_class, spec_score = None, 0.0
         if spec_res:
             s_label = spec_res[0]['label']
-            s_score = spec_res[0]['score']
-            s_mapped = SPECIALIST_MAP.get(s_label)
+            if SPECIALIST_MAP.get(s_label):
+                spec_class = SPECIALIST_MAP.get(s_label)
+                spec_score = spec_res[0]['score']
+
+        best_prediction = {"class": "UNKNOWN", "score": 0.0, "expert": "none"}
+
+        # Conflict Resolution Engine:
+        if gen_class and spec_class:
+            is_gen_unique = "Rice" in gen_class or "Wheat" in gen_class
             
-            if s_mapped:
-                # Smart Tie-Breaker Logic
-                is_unique_to_gen = "Rice" in best_prediction['class'] or "Wheat" in best_prediction['class']
-                
-                if is_unique_to_gen:
-                    # Generalist is the ONLY expert that actually knows Rice/Wheat.
-                    # Only allow Specialist to override if Specialist is extremely confident AND Generalist is extremely weak.
-                    if s_score > 0.85 and best_prediction['score'] < 0.20:
-                        best_prediction = {"class": s_mapped, "score": s_score, "expert": "Specialist"}
-                else:
-                    # For shared crops (Potato, Corn) OR Specialist-only crops (Tomato, Apple), the Generalist is either coarse or hallucinating.
-                    # Give the Specialist a mathematical multiplier (1.5x) to compete fairly with Generalist's inflated 13-class probabilities.
-                    if (s_score * 1.5) > best_prediction['score'] or s_score > 0.40:
-                        best_prediction = {"class": s_mapped, "score": s_score, "expert": "Specialist"}
+            if is_gen_unique:
+                 # For Rice/Wheat, Generalist is the absolute authority.
+                 if spec_score > (gen_score + 0.50): # Only override if Specialist is absurdly confident and Gen is totally unsure
+                      best_prediction = {"class": spec_class, "score": spec_score, "expert": "Specialist"}
+                 else:
+                      best_prediction = {"class": gen_class, "score": gen_score, "expert": "Generalist"}
+            else:
+                 # For Tomato, Potato, Corn, Apple, etc... Specialist is the authority because it knows 38 classes. 
+                 # Generalist hallucinates Potato for Tomato leaves due to low class limits.
+                 if gen_score > 0.80 and spec_score < 0.15:
+                      best_prediction = {"class": gen_class, "score": gen_score, "expert": "Generalist"}
+                 else:
+                      best_prediction = {"class": spec_class, "score": spec_score, "expert": "Specialist"}
+                      
+        elif spec_class:
+            best_prediction = {"class": spec_class, "score": spec_score, "expert": "Specialist"}
+        elif gen_class:
+            best_prediction = {"class": gen_class, "score": gen_score, "expert": "Generalist"}
 
         # Fallback: Pest expert
         if pest_res:
