@@ -246,12 +246,10 @@ async def predict(
                  else:
                       best_prediction = {"class": gen_class, "score": gen_score, "expert": "Generalist"}
             else:
-                 # For Tomato, Potato, Corn, Apple, etc... Specialist is the authority because it knows 38 classes. 
-                 # Generalist hallucinates Potato for Tomato leaves due to low class limits.
-                 if gen_score > 0.80 and spec_score < 0.15:
-                      best_prediction = {"class": gen_class, "score": gen_score, "expert": "Generalist"}
-                 else:
-                      best_prediction = {"class": spec_class, "score": spec_score, "expert": "Specialist"}
+                 # For Tomato, Potato, Corn, Apple, etc... Specialist is ALWAYS the authority because it knows 38 classes. 
+                 # Generalist will ALWAYS mathematically hallucinate "Potato" with 90%+ confidence for Tomato leaves due to its tiny 13-class limits.
+                 # NEVER allow Generalist to override Specialist for these crops!
+                 best_prediction = {"class": spec_class, "score": spec_score, "expert": "Specialist"}
                       
         elif spec_class:
             best_prediction = {"class": spec_class, "score": spec_score, "expert": "Specialist"}
