@@ -53,9 +53,25 @@ def get_experts():
             try:
                 # Provide strict image processor fallback to correct the HuggingFace missing preprocessor_config crash
                 if entry['id'] == 'specialist':
-                    from transformers import AutoImageProcessor
-                    processor = AutoImageProcessor.from_pretrained("google/mobilenet_v2_1.0_224")
-                    pipe = pipeline("image-classification", model=entry['model'], image_processor=processor)
+                    from transformers import AutoImageProcessor, AutoModelForImageClassification
+                    import torch
+                    
+                    class SpecialistPipeline:
+                        def __init__(self, model_name):
+                            self.processor = AutoImageProcessor.from_pretrained("google/mobilenet_v2_1.0_224")
+                            self.model = AutoModelForImageClassification.from_pretrained(model_name)
+                            self.model.eval()
+                            self.torch = torch
+
+                        def __call__(self, image):
+                            inputs = self.processor(images=image, return_tensors="pt")
+                            with self.torch.no_grad():
+                                outputs = self.model(**inputs)
+                            probs = self.torch.nn.functional.softmax(outputs.logits, dim=-1)[0]
+                            predicted_idx = probs.argmax().item()
+                            return [{"label": self.model.config.id2label[predicted_idx], "score": probs[predicted_idx].item()}]
+                            
+                    pipe = SpecialistPipeline(entry['model'])
                 else:
                     pipe = pipeline("image-classification", model=entry['model'])
                     
