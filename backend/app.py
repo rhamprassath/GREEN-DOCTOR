@@ -59,6 +59,7 @@ def get_experts():
                     
                     class SpecialistPipeline:
                         def __init__(self, model_name):
+                            # Force HuggingFace rebuild
                             self.model = AutoModelForImageClassification.from_pretrained(model_name).to(torch.float32)
                             self.model.eval()
                             self.torch = torch
